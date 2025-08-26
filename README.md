@@ -1,7 +1,7 @@
 <!-- Banner / Cover Image -->
 <p align="center">
     <img width="300" src="https://i.imgur.com/JaOJmKS.png" />
-
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/H2H51HUE4X)
 ---
 
 ## 🌐 Connect with Us
