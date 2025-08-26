@@ -1,9 +1,16 @@
+<!-- Banner / Cover Image -->
 <p align="center">
     <img width="300" src="https://i.imgur.com/JaOJmKS.png" />  
 
-# QB-Inventory Rework | A Modern Inventory for QBCore
+---
 
- **qb-Inventory-rework**, a modern, feature-rich, and optimized inventory system for the QBCore Framework.
+## 🌐 Connect with Us
+<p align="center">
+  <a href="https://discord.gg/HMMYNPEXGY"><img src="https://img.shields.io/badge/Discord-%237289DA.svg?style=for-the-badge&logo=discord&logoColor=white"/></a>
+  <a href="https://www.youtube.com/@apcodeid"><img src="https://img.shields.io/badge/YouTube-%23FF0000.svg?style=for-the-badge&logo=YouTube&logoColor=white"/></a>
+</p>
+
+ ## [QB INVENTORY REWORK] a modern, feature-rich, and optimized inventory system for the QBCore Framework.
 
 ![Inventory Showcase](https://i.imgur.com/gCWzI8h.png) 
 ![Inventory Showcase](https://i.imgur.com/NUgPvCy.png) 
@@ -289,6 +296,9 @@ end
 
 ### Step 3: Add Cash Item to `qb-core/shared/items.lua`
 
+<details>
+<summary>Click to view the replacement code for CheckPlayerData</summary>
+  
 ```lua
 ['cash'] = {
     name = 'cash',
@@ -301,10 +311,12 @@ end
     shouldClose = false,
     description = 'Don\'t spend it all in one place.'
 },
+```
+</details>
 
 If you encounter any issues, require assistance, or wish to suggest new features, please join our official Discord server. We're here to help!
 
-[**Join AP_CODE Discord**](https://discord.gg/HMMYNPEXGY)
+[**Join the Official AP Code Discord**](https://discord.gg/HMMYNPEXGY)
 
 ## ⚙️ Configuration
 
