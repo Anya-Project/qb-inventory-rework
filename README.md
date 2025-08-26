@@ -317,7 +317,7 @@ end
 
 If you encounter any issues, require assistance, or wish to suggest new features, please join our official Discord server. We're here to help!
 
-[**Join AP_CODE Discord**](https://discord.gg/HMMYNPEXGY)
+[**Join the Official AP Code Discord**](https://discord.gg/HMMYNPEXGY)
 
 ## ⚙️ Configuration
 
