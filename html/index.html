@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QB Inventory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="main.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/floating-vue@5.2.2/dist/style.css"
+    />
+    <script
+      src="https://kit.fontawesome.com/d37231be1f.js"
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@floating-ui/core@1.6.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@floating-ui/dom@1.6.1"></script>
+    <script src="https://unpkg.com/floating-vue@5.2.2/dist/floating-vue.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+    <script src="app.js" defer></script>
+  </head>
+
+  <body>
+    <div id="app">
+      <div
+        class="inventory-container"
+        v-if="isInventoryOpen"
+        @mousemove="drag"
+        @mouseup="endDrag"
+        @mousedown="containerMouseDownAction"
+      >
+        <div class="inventory-section player-inventory-section">
+          <div class="inventory-header">
+            <div class="labels-container">
+              <div class="inventory-label">
+                <p>{{ inventoryLabel }}</p>
+              </div>
+              <div class="current-weight">
+                <p>
+                  {{ (playerWeight / 1000).toFixed(1) }} / {{ (maxWeight /
+                  1000).toFixed(1) }}KG
+                </p>
+              </div>
+            </div>
+            <div class="weight-bar">
+              <div
+                class="weight-bar-fill"
+                :style="{ width: Math.min((playerWeight / maxWeight) * 100, 100) + '%' }"
+              ></div>
+            </div>
+          </div>
+          <div class="inventory-grid">
+            <div class="item-grid">
+              <div
+                v-for="slot in totalSlots"
+                :key="slot"
+                class="item-slot"
+                :data-slot="slot"
+                :class="{ 
+                                'has-decay': getItemInSlot(slot, 'player') && getItemInSlot(slot, 'player').info.expiryDate && !isItemExpired(getItemInSlot(slot, 'player')),
+                                'expired-item': isItemExpired(getItemInSlot(slot, 'player')), 
+                                'invalid-slot-highlight': errorSlot === slot 
+                            }"
+                @dblclick="getItemInSlot(slot, 'player') && useItem(getItemInSlot(slot, 'player'))"
+                @mousedown="event => handleMouseDown(event, slot, 'player')"
+              >
+                <div
+                  class="item-slot-content"
+                  v-if="getItemInSlot(slot, 'player')"
+                  v-tooltip.right-end="{content: generateTooltipContent(getItemInSlot(slot, 'player')), html: true}"
+                >
+                  <div class="item-slot-key" v-if="slot <= 5">
+                    <p>{{ slot }}</p>
+                  </div>
+                  <div class="item-slot-amount">
+                    <p>
+                      {{ formatNumber(getItemInSlot(slot, 'player').amount) }}
+                    </p>
+                  </div>
+                  <div class="item-slot-img">
+                    <img
+                      :src="'images/' + getItemInSlot(slot, 'player').image"
+                      alt=""
+                    />
+                  </div>
+                  <div
+                    class="item-slot-durability"
+                    v-if="getItemInSlot(slot, 'player').type === 'weapon'"
+                  >
+                    <div
+                      class="item-slot-durability-fill"
+                      v-if="getItemInSlot(slot, 'player').info && 'quality' in getItemInSlot(slot, 'player').info"
+                      :style="{ width: (100 - getItemInSlot(slot, 'player').info.quality) + '%' }"
+                    ></div>
+                  </div>
+                  <div
+                    class="item-slot-expiry"
+                    v-if="getItemInSlot(slot, 'player').info && getItemInSlot(slot, 'player').info.expiryDate"
+                  >
+                    <div
+                      class="item-slot-expiry-fill"
+                      :style="{ width: (100 - getExpiryPercentage(getItemInSlot(slot, 'player'))) + '%' }"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="input-container">
+          <div
+            class="blur-toggle-wrapper"
+            @click="toggleBlur"
+            v-tooltip.bottom="'Toggle Background Blur'"
+          >
+            <div class="toggle-rail" :class="{ 'toggled-on': isBlurEnabled }">
+              <div class="toggle-icon-container">
+                <i class="fa-solid fa-eye-slash"></i>
+              </div>
+              <div class="toggle-icon-container">
+                <i class="fa-solid fa-eye"></i>
+              </div>
+              <div class="toggle-knob"></div>
+            </div>
+          </div>
+          <div class="input-wrapper">
+            <input
+              type="number"
+              v-model.number="transferAmount"
+              min="0"
+              placeholder="amount"
+            />
+            <button @click="clearTransferAmount" class="clear-button">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+        <div class="inventory-section other-inventory-section">
+          <div v-if="isAttachmentPanelOpen" class="attachment-panel">
+            <div class.="attachment-header">
+              <h3>Weapon Inspection</h3>
+              <button @click="closeAttachmentPanel" class="close-panel-button">
+                &times;
+              </button>
+            </div>
+
+            <div class="inspection-content">
+              <div class="weapon-display-column">
+                <div class="weapon-main-image">
+                  <img
+                    :src="'images/' + selectedWeaponForPanel.image"
+                    :alt="selectedWeaponForPanel.label"
+                  />
+                </div>
+                <h4 class="weapon-title">{{ selectedWeaponForPanel.label }}</h4>
+                <div class="weapon-stats">
+                  <div class="stat-item">
+                    <span class="stat-label">Serial No.</span>
+                    <span class="stat-value"
+                      >{{ selectedWeaponForPanel.info.serie || 'N/A' }}</span
+                    >
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Quality</span>
+                    <div class="stat-bar-container">
+                      <div
+                        class="stat-bar"
+                        :style="{ width: selectedWeaponForPanel.info.quality + '%' }"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              
+              <div class="attachment-slots-column">
+                <h4 class="column-title">Attachment Slots</h4>
+                <div class="slots-container">
+                  
+                  <div class="attachment-slot-wrapper">
+                    <div
+                      class="attachment-slot-box"
+                      :class="{ 'filled': getAttachmentByType('suppressor') }"
+                      @click="getAttachmentByType('suppressor') && removeAttachment(getAttachmentByType('suppressor'))"
+                      v-tooltip.left-end="getAttachmentTooltip('suppressor')"
+                    >
+                      <img
+                        v-if="getAttachmentByType('suppressor')"
+                        :src="'images/' + getAttachmentByType('suppressor').attachment + '.png'"
+                      />
+                      <i v-else class="fa-solid fa-plus empty-slot-icon"></i>
+                    </div>
+                    <span class="slot-type-label">Muzzle</span>
+                  </div>
+                  
+                  <div class="attachment-slot-wrapper">
+                    <div
+                      class="attachment-slot-box"
+                      :class="{ 'filled': getAttachmentByType('flashlight') }"
+                      @click="getAttachmentByType('flashlight') && removeAttachment(getAttachmentByType('flashlight'))"
+                      v-tooltip.left-end="getAttachmentTooltip('flashlight')"
+                    >
+                      <img
+                        v-if="getAttachmentByType('flashlight')"
+                        :src="'images/' + getAttachmentByType('flashlight').attachment + '.png'"
+                      />
+                      <i v-else class="fa-solid fa-plus empty-slot-icon"></i>
+                    </div>
+                    <span class="slot-type-label">Accessory</span>
+                  </div>
+                  
+                  <div class="attachment-slot-wrapper">
+                    <div
+                      class="attachment-slot-box"
+                      :class="{ 'filled': getAttachmentByType('grip') }"
+                      @click="getAttachmentByType('grip') && removeAttachment(getAttachmentByType('grip'))"
+                      v-tooltip.left-end="getAttachmentTooltip('grip')"
+                    >
+                      <img
+                        v-if="getAttachmentByType('grip')"
+                        :src="'images/' + getAttachmentByType('grip').attachment + '.png'"
+                      />
+                      <i v-else class="fa-solid fa-plus empty-slot-icon"></i>
+                    </div>
+                    <span class="slot-type-label">Grip</span>
+                  </div>
+                  <div class="attachment-slot-wrapper">
+                    <div
+                      class="attachment-slot-box"
+                      :class="{ 'filled': getAttachmentByType('scope') }"
+                      @click="getAttachmentByType('scope') && removeAttachment(getAttachmentByType('scope'))"
+                      v-tooltip.left-end="getAttachmentTooltip('scope')"
+                    >
+                      <img
+                        v-if="getAttachmentByType('scope')"
+                        :src="'images/' + getAttachmentByType('scope').attachment + '.png'"
+                      />
+                      <i v-else class="fa-solid fa-plus empty-slot-icon"></i>
+                    </div>
+                    <span class="slot-type-label">Optics</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="inventory-content-wrapper">
+            <div class="inventory-header">
+              <div class="labels-container">
+                <div class="inventory-label">
+                  <p>{{ otherInventoryLabel }}</p>
+                </div>
+                <div
+                  class="current-weight"
+                  v-if="otherInventoryName !== 'ground'"
+                >
+                  <p>
+                    {{ (otherInventoryWeight / 1000).toFixed(1) }} /
+                    {{(otherInventoryMaxWeight / 1000).toFixed(1) }}KG
+                  </p>
+                </div>
+              </div>
+              <div class="weight-bar" v-if="otherInventoryName !== 'ground'">
+                <div
+                  class="weight-bar-fill"
+                  :style="{ width: Math.min((otherInventoryWeight / otherInventoryMaxWeight) * 100, 100) + '%' }"
+                ></div>
+              </div>
+            </div>
+            <div class="inventory-grid">
+              <div
+                v-if="otherInventoryName === 'ground'"
+                class="drop-zone-container"
+              >
+                <div class="drop-zone-content">
+                  <i class="fas fa-arrow-down drop-zone-icon"></i>
+                  <p>Drop items here</p>
+                </div>
+              </div>
+              <div v-else class="item-grid">
+                <div
+                  v-for="slot in otherInventorySlots"
+                  :key="slot"
+                  class="item-slot"
+                  :data-slot="slot"
+                  @mousedown="event => handleMouseDown(event, slot, 'other')"
+                  @dragover.prevent
+                >
+                  <div
+                    class="item-slot-content"
+                    v-if="getItemInSlot(slot, 'other')"
+                    v-tooltip.right-end="{content: generateTooltipContent(getItemInSlot(slot, 'other')), html: true}"
+                  >
+                    <div v-if="isShopInventory" class="item-price">
+                      <p>${{ getItemInSlot(slot, 'other').price }}</p>
+                    </div>
+                    <div class="item-slot-img">
+                      <img
+                        :src="'images/' + getItemInSlot(slot, 'other').image"
+                        alt=""
+                      />
+                    </div>
+                    <div class="item-slot-amount">
+                      <p>
+                        {{ formatNumber(getItemInSlot(slot, 'other').amount) }}
+                      </p>
+                    </div>
+                    <div
+                      class="item-slot-durability"
+                      v-if="getItemInSlot(slot, 'other').type === 'weapon'"
+                    >
+                      <div
+                        class="item-slot-durability-fill"
+                        v-if="getItemInSlot(slot, 'other').info && 'quality' in getItemInSlot(slot, 'other').info"
+                        :style="{ width: (100 - getItemInSlot(slot, 'other').info.quality) + '%' }"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hotbar-container" v-if="showHotbar">
+        <div class="hotbar">
+          <div v-for="slot in 5" :key="slot" class="item-slot">
+            <div class="item-slot-content" v-if="getHotbarItemInSlot(slot)">
+              <div class="item-slot-key">
+                <p>{{ slot }}</p>
+              </div>
+              <div class="item-slot-img">
+                <img
+                  :src="'images/' + getHotbarItemInSlot(slot).image"
+                  alt=""
+                />
+              </div>
+              <div class="item-slot-amount">
+                <p>x{{ getHotbarItemInSlot(slot).amount }}</p>
+              </div>
+              <div
+                class="item-slot-durability"
+                v-if="getHotbarItemInSlot(slot).type === 'weapon'"
+              >
+                <div
+                  class="item-slot-durability-fill"
+                  v-if="getHotbarItemInSlot(slot).info && 'quality' in getHotbarItemInSlot(slot).info"
+                  :style="{ width: (100 - getHotbarItemInSlot(slot).info.quality) + '%' }"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="notification-container" v-if="showNotification">
+        <div class="notification-slot">
+          <div class="notification-title">
+            <p>{{ notificationType || 'NOTIFICATION' }}</p>
+          </div>
+          <div class="item-slot-img" v-if="notificationImage">
+            <img :src="notificationImage" alt="item-image" />
+          </div>
+          <div class="item-slot-label">
+            <p>{{ notificationText || '...' }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="required-item-container" v-if="showRequiredItems">
+        <div class="required-item">
+          <div
+            v-for="(item, index) in requiredItems"
+            :key="index"
+            class="item-slot"
+          >
+            <div class="item-slot-content">
+              <div class="item-slot-img">
+                <img :src="'images/' + item.image" alt="" />
+              </div>
+              <div class="item-slot-label">
+                <p>{{ item.label }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ul
+        v-if="showContextMenu"
+        class="context-menu"
+        :style="{ top: contextMenuPosition.top, left: contextMenuPosition.left }"
+      >
+        <li v-if="contextMenuItem.useable" @click="useItem(contextMenuItem)">
+          Use
+        </li>
+        <li @mouseover="handleGiveHover" @mouseleave="handleGiveLeave">
+          Give
+          <ul v-if="showSubmenu" class="submenu player-list-submenu">
+            <li v-if="isLoadingNearbyPlayers" class="submenu-info-item">
+              Loading...
+            </li>
+            <template
+              v-else-if="!isLoadingNearbyPlayers && nearbyPlayers.length > 0"
+            >
+              <li
+                v-for="player in nearbyPlayers"
+                :key="player.id"
+                class="player-list-item"
+                @click.stop="setActiveGiveTarget(player.id)"
+              >
+                <span>[{{ player.id }}] {{ player.name }}</span>
+                <div
+                  v-if="activeGiveTargetId === player.id"
+                  class="submenu quantity-input-submenu"
+                  @click.stop
+                >
+                  <input
+                    type="number"
+                    :max="contextMenuItem.amount"
+                    min="1"
+                    v-model.number="giveAmount"
+                    placeholder="Amount"
+                    @input="validateGiveAmount"
+                    class="quantity-input"
+                  />
+                  <button
+                    @click="giveItemToPlayer(player.id, giveAmount)"
+                    class="give-button"
+                  >
+                    Give
+                  </button>
+                </div>
+              </li>
+            </template>
+            <li
+              v-else-if="!isLoadingNearbyPlayers && nearbyPlayers.length === 0"
+              class="submenu-info-item"
+              @click.stop.prevent
+            >
+              No players nearby
+            </li>
+          </ul>
+        </li>
+        <li
+          class="player-list-item"
+          @mouseover="setActiveDropTarget(true)"
+          @mouseleave="setActiveDropTarget(false)"
+        >
+          Drop
+          <div
+            v-if="activeDropTarget"
+            class="submenu quantity-input-submenu"
+            @click.stop
+          >
+            <input
+              type="number"
+              :max="contextMenuItem.amount"
+              min="0"
+              v-model.number="dropAmount"
+              placeholder="Amount"
+              @input="validateDropAmount"
+              class="quantity-input"
+            />
+            <button
+              @click="dropItem(contextMenuItem, dropAmount)"
+              class="give-button"
+            >
+              Drop
+            </button>
+          </div>
+        </li>
+        <li @click="splitAndPlaceItem(contextMenuItem, 'player')">Split</li>
+        <li
+          v-if="contextMenuItem.name.includes('weapon_')"
+          @click="copySerial(contextMenuItem)"
+        >
+          Copy Serial
+        </li>
+        <li
+          v-if="contextMenuItem.name.includes('weapon_')"
+          @click="openWeaponAttachments(contextMenuItem)"
+        >
+          Attachments
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>
