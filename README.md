@@ -1,24 +1,26 @@
 <!-- Banner / Cover Image -->
 <p align="center">
-    <img width="300" src="https://i.imgur.com/JaOJmKS.png" />  
+    <img width="300" src="https://i.imgur.com/JaOJmKS.png" />
 
 ---
 
 ## 🌐 Connect with Us
+
 <p align="center">
   <a href="https://discord.gg/HMMYNPEXGY"><img src="https://img.shields.io/badge/Discord-%237289DA.svg?style=for-the-badge&logo=discord&logoColor=white"/></a>
   <a href="https://www.youtube.com/@apcodeid"><img src="https://img.shields.io/badge/YouTube-%23FF0000.svg?style=for-the-badge&logo=YouTube&logoColor=white"/></a>
 </p>
 
- ## [QB INVENTORY REWORK] a modern, feature-rich, and optimized inventory system for the QBCore Framework.
+## [QB INVENTORY REWORK] a modern, feature-rich, and optimized inventory system for the QBCore Framework.
 
-![Inventory Showcase](https://i.imgur.com/gCWzI8h.png) 
-![Inventory Showcase](https://i.imgur.com/NUgPvCy.png) 
+![Inventory Showcase](https://i.imgur.com/gCWzI8h.png)
+![Inventory Showcase](https://i.imgur.com/NUgPvCy.png)
+
 ---
 
 ## 📜 Description
 
-QB Inventory Rework is a complete replacement for the default QBCore inventory, designed to provide a more immersive and functional experience for players. 
+QB Inventory Rework is a complete replacement for the default QBCore inventory, designed to provide a more immersive and functional experience for players.
 
 ---
 
@@ -33,13 +35,14 @@ QB Inventory Rework is a complete replacement for the default QBCore inventory, 
 - Code modifications for optimization & security
 
 ---
+
 [**Join the Official AP Code Discord**](https://discord.gg/HMMYNPEXGY)
 
 ## 📦 Dependencies
 
 Ensure you have the following resources installed and running before installing qb-Inventory rework :
 
--   [**qb-core**](https://github.com/qbcore-framework/qb-core)
+- [**qb-core**](https://github.com/qbcore-framework/qb-core)
 
 ---
 
@@ -50,7 +53,8 @@ Follow these steps **very carefully** to ensure a smooth installation.
 ### Step 1: Download & Place the Resource
 
 1.  Download this resource's files
-2.  delete your old inventory and replace with `qb-inventory rework` 
+2.  Rename qb-inventory-rework to qb-inventory
+3.  delete your old inventory and replace with `qb-inventory` rework
 
 ### Step 2: Modify `qb-core`
 
@@ -61,6 +65,7 @@ You need to edit the `qb-core/server/player.lua` file to integrate the money-as-
 #### A. Replace Money Management Functions
 
 Open `qb-core/server/player.lua` and find the following functions:
+
 - `self.Functions.AddMoney`
 - `self.Functions.RemoveMoney`
 - `self.Functions.SetMoney`
@@ -179,7 +184,7 @@ function self.Functions.SetMoney(moneytype, amount, reason)
         end
         if success then
             local newTotalCash = exports['ap-inventory']:GetItemCount(self.PlayerData.source, 'cash') or 0
-            self.PlayerData.money.cash = newTotalCash 
+            self.PlayerData.money.cash = newTotalCash
             if not self.Offline then
                 TriggerEvent('qb-log:server:CreateLog', 'playermoney', 'SetMoney (as item)', 'green', '**' .. GetPlayerName(self.PlayerData.source) .. ' (citizenid: ' .. self.PlayerData.citizenid .. ' | id: ' .. self.PlayerData.source .. ')** cash set to $' .. amount .. ', reason: ' .. reason)
                 TriggerClientEvent('QBCore:Client:OnMoneyChange', self.PlayerData.source, moneytype, amount, 'set', reason)
@@ -292,6 +297,7 @@ function QBCore.Player.CheckPlayerData(source, PlayerData)
     return QBCore.Player.CreatePlayer(PlayerData, Offline)
 end
 ```
+
 </details>
 
 ### Step 3: Add Cash Item to `qb-core/shared/items.lua`
@@ -321,13 +327,15 @@ If you encounter any issues, require assistance, or wish to suggest new features
 ## ⚙️ Configuration
 
 All major configuration options can be found in the `config.lua` file. You can adjust:
--   The default keybind to open the inventory.
--   Maximum weight and slot counts.
--   Storage sizes for trunks, gloveboxes, and drops.
--   Items sold in Vending Machines.
--   And much more.
+
+- The default keybind to open the inventory.
+- Maximum weight and slot counts.
+- Storage sizes for trunks, gloveboxes, and drops.
+- Items sold in Vending Machines.
+- And much more.
 
 ---
+
 ## 🆘 Support
 
 ## Special thanks to the QBCore community for their support and inspiration.
