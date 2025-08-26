@@ -297,6 +297,9 @@ end
 
 ### Step 3: Add Cash Item to `qb-core/shared/items.lua`
 
+<details>
+<summary>Click to view the replacement code for CheckPlayerData</summary>
+  
 ```lua
 ['cash'] = {
     name = 'cash',
@@ -309,6 +312,8 @@ end
     shouldClose = false,
     description = 'Don\'t spend it all in one place.'
 },
+```
+</details>
 
 If you encounter any issues, require assistance, or wish to suggest new features, please join our official Discord server. We're here to help!
 
