@@ -334,6 +334,4 @@ All major configuration options can be found in the `config.lua` file. You can a
 
 ---
 
-## 🆘 Support
-
 ## Special thanks to the QBCore community for their support and inspiration.
