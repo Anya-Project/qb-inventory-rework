@@ -1,7 +1,6 @@
 <!-- Banner / Cover Image -->
 <p align="center">
     <img width="300" src="https://i.imgur.com/JaOJmKS.png" />
----
 
 ## 🌐 Connect with Us
 
