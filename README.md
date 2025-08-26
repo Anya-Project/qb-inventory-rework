@@ -2,13 +2,11 @@
 <p align="center">
     <img width="300" src="https://i.imgur.com/JaOJmKS.png" />
 
----
-
 ## 🌐 Connect with Us
 
 <p align="center">
   <a href="https://discord.gg/HMMYNPEXGY"><img src="https://img.shields.io/badge/Discord-%237289DA.svg?style=for-the-badge&logo=discord&logoColor=white"/></a>
-  <a href="https://www.youtube.com/@apcodeid"><img src="https://img.shields.io/badge/YouTube-%23FF0000.svg?style=for-the-badge&logo=YouTube&logoColor=white"/></a>
+  <a href="https://ko-fi.com/H2H51HUE4X"><img src="https://ko-fi.com/img/githubbutton_sm.svg"/></a>
 </p>
 
 ## [QB INVENTORY REWORK] a modern, feature-rich, and optimized inventory system for the QBCore Framework.
@@ -335,7 +333,5 @@ All major configuration options can be found in the `config.lua` file. You can a
 - And much more.
 
 ---
-
-## 🆘 Support
 
 ## Special thanks to the QBCore community for their support and inspiration.
