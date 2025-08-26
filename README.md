@@ -10,7 +10,9 @@
   <a href="https://www.youtube.com/@apcodeid"><img src="https://img.shields.io/badge/YouTube-%23FF0000.svg?style=for-the-badge&logo=YouTube&logoColor=white"/></a>
 </p>
 
+<p align="center">
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/H2H51HUE4X)
+</p>
 
 ## [QB INVENTORY REWORK] a modern, feature-rich, and optimized inventory system for the QBCore Framework.
 
