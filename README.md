@@ -1,5 +1,5 @@
 <p align="center">
-    <img width="140" src="https://i.imgur.com/JaOJmKS.png" />  
+    <img width="300" src="https://i.imgur.com/JaOJmKS.png" />
 
 # QB-Inventory Rework | A Modern Inventory for QBCore
 
