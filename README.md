@@ -1,9 +1,17 @@
+<!-- Banner / Cover Image -->
 <p align="center">
-    <img width="300" src="https://i.imgur.com/JaOJmKS.png" />
+  <img src="https://i.imgur.com/JaOJmKS.png" width="100%" alt="APCode Banner"/> 
+</p>
 
-# QB-Inventory Rework | A Modern Inventory for QBCore
+---
 
- **qb-Inventory-rework**, a modern, feature-rich, and optimized inventory system for the QBCore Framework.
+## 🌐 Connect with Us
+<p align="center">
+  <a href="https://discord.gg/HMMYNPEXGY"><img src="https://img.shields.io/badge/Discord-%237289DA.svg?style=for-the-badge&logo=discord&logoColor=white"/></a>
+  <a href="https://www.youtube.com/@apcodeid"><img src="https://img.shields.io/badge/YouTube-%23FF0000.svg?style=for-the-badge&logo=YouTube&logoColor=white"/></a>
+</p>
+
+ ## [QB INVENTORY REWORK] a modern, feature-rich, and optimized inventory system for the QBCore Framework.
 
 ![Inventory Showcase](https://i.imgur.com/gCWzI8h.png) 
 ![Inventory Showcase](https://i.imgur.com/NUgPvCy.png) 
