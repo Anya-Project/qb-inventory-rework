@@ -1,7 +1,6 @@
 <!-- Banner / Cover Image -->
 <p align="center">
     <img width="300" src="https://i.imgur.com/JaOJmKS.png" />
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/H2H51HUE4X)
 ---
 
 ## 🌐 Connect with Us
@@ -10,6 +9,8 @@
   <a href="https://discord.gg/HMMYNPEXGY"><img src="https://img.shields.io/badge/Discord-%237289DA.svg?style=for-the-badge&logo=discord&logoColor=white"/></a>
   <a href="https://www.youtube.com/@apcodeid"><img src="https://img.shields.io/badge/YouTube-%23FF0000.svg?style=for-the-badge&logo=YouTube&logoColor=white"/></a>
 </p>
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/H2H51HUE4X)
 
 ## [QB INVENTORY REWORK] a modern, feature-rich, and optimized inventory system for the QBCore Framework.
 
