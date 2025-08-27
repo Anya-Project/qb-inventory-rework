@@ -14,7 +14,7 @@ Step 1: Download & Place the Resource
 3.  Make sure the inventory folder name is:
     ✅ qb-inventory
     ❌ not qb-inventory-rework
-    ❌ not qb-inventory-rework-main 
+    ❌ not qb-inventory-rework-main
 
 Step 2: Modify `qb-core`
 
@@ -32,6 +32,7 @@ Open `qb-core/server/player.lua` and find the following functions:
 
 Delete all four of these functions entirely and replace them with the code block below:
 
+1. ADD MONEY
 ```
 function self.Functions.AddMoney(moneytype, amount, reason)
     reason = reason or 'unknown'
@@ -69,7 +70,10 @@ function self.Functions.AddMoney(moneytype, amount, reason)
     end
     return true
 end
+```
 
+2. REMOVE MONEY
+```
 function self.Functions.RemoveMoney(moneytype, amount, reason)
     reason = reason or 'unknown'
     moneytype = moneytype:lower()
@@ -119,7 +123,9 @@ function self.Functions.RemoveMoney(moneytype, amount, reason)
     end
     return true
 end
-
+```
+3. SET MONEY
+```
 function self.Functions.SetMoney(moneytype, amount, reason)
     reason = reason or 'unknown'
     moneytype = moneytype:lower()
@@ -160,7 +166,9 @@ function self.Functions.SetMoney(moneytype, amount, reason)
     end
     return true
 end
-
+```
+4. GET MONEY
+```
 function self.Functions.GetMoney(moneytype)
     if not moneytype then return false end
     moneytype = moneytype:lower()
@@ -184,7 +192,9 @@ end
 
 Still in `qb-core/server/player.lua`, find the function `QBCore.Player.CheckPlayerData`. Delete this function and replace it with the code block below. This change ensures the player's inventory is loaded correctly when they join the server.
 
-```lua
+CHECK PLAYER DATA
+
+```
 function QBCore.Player.CheckPlayerData(source, PlayerData)
     PlayerData = PlayerData or {}
     local Offline = not source
@@ -248,7 +258,7 @@ end
 
 Step 3: Add Cash Item to `qb-core/shared/items.lua`
 
-```lua
+```
 ['cash'] = {
     name = 'cash',
     label = 'Cash',
@@ -261,3 +271,29 @@ Step 3: Add Cash Item to `qb-core/shared/items.lua`
     description = 'Don\'t spend it all in one place.'
 },
 ```
+
+Step 4: Add Decay Rate to Food and Drinks
+
+To make food and drinks perishable, you need to add a decay rate to them.
+
+Open `qb-core/shared/items.lua` and for every food and drink item, add the following line inside its definition:
+`decayrate = 86400.0`
+
+**Example:**
+
+```
+['sandwich'] = {
+    name = 'sandwich',
+    label = 'Sandwich',
+    weight = 200,
+    type = 'item',
+    image = 'sandwich.png',
+    unique = false,
+    useable = true,
+    shouldClose = true,
+    description = 'Nice bread for your stomach',
+    decayrate = 86400.0
+},
+```
+
+Apply this change to all food and drink items in your `items.lua` file.

@@ -318,6 +318,30 @@ end
 ```
 </details>
 
+### Step 4: Add Decay Rate to Food and Drinks
+
+To make food and drinks perishable, you need to add a decay rate to them.
+Open qb-core/shared/items.lua and for every food and drink item, add the following line inside its definition:
+
+`decayrate = 86400.0`
+
+EXAMPLE :
+
+```lua
+['sandwich'] = {
+    name = 'sandwich',
+    label = 'Sandwich',
+    weight = 200,
+    type = 'item',
+    image = 'sandwich.png',
+    unique = false,
+    useable = true,
+    shouldClose = true,
+    description = 'Nice bread for your stomach',
+    decayrate = 86400.0
+},
+```
+
 If you encounter any issues, require assistance, or wish to suggest new features, please join our official Discord server. We're here to help!
 
 [**Join the Official AP Code Discord**](https://discord.gg/HMMYNPEXGY)
