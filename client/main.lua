@@ -165,7 +165,7 @@ RegisterNetEvent('qb-inventory:client:updateInventory', function()
 end)
 
 RegisterNetEvent('qb-inventory:client:ItemBox', function(itemData, type, amount)
-    print(('DEBUG: Received ItemBox event with item: %s'):format(json.encode(itemData)))
+   -- print(('DEBUG: Received ItemBox event with item: %s'):format(json.encode(itemData)))
 
     SendNUIMessage({
         action = 'itemBox',

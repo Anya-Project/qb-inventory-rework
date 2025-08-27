@@ -97,7 +97,7 @@ end)
 
 AddEventHandler('onResourceStart', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
-    local Players = QBCore.Functions.GetQBPlayers()
+    local Players = QBCore.Functions.GetPlayers()
     for k in pairs(Players) do
         QBCore.Functions.AddPlayerMethod(k, 'AddItem', function(item, amount, slot, info)
             return AddItem(k, item, amount, slot, info)
@@ -246,7 +246,7 @@ RegisterNetEvent('qb-inventory:server:useItem', function(item)
         end
     else
         UseItem(itemData.name, src, itemData)
-         print(('DEBUG: Triggering ItemBox for player %s with item: %s'):format(src, json.encode(itemInfo)))
+        -- print(('DEBUG: Triggering ItemBox for player %s with item: %s'):format(src, json.encode(itemInfo)))
 
         TriggerClientEvent('qb-inventory:client:ItemBox', src, itemInfo, 'use')
     end
