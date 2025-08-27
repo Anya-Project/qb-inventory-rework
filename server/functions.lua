@@ -843,6 +843,12 @@ inventory[slot] = {
     if p and p.state and not p.state.inv_busy then
         TriggerClientEvent('qb-inventory:client:ItemBox', identifier, itemInfo, 'add', amount)
     end
+
+     if player and item == 'cash' then
+        local currentCash = GetItemCount(identifier, 'cash') or 0
+        player.Functions.SetMoney('cash', currentCash)
+        TriggerClientEvent('qb-inventory:client:updateCash', identifier, currentCash)
+    end
     
     return true
 end

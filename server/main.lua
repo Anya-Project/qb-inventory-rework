@@ -66,6 +66,7 @@ RegisterNetEvent('QBCore:Server:UpdateObject', function()
 end)
 
 AddEventHandler('QBCore:Server:PlayerLoaded', function(Player)
+    
     QBCore.Functions.AddPlayerMethod(Player.PlayerData.source, 'AddItem', function(item, amount, slot, info, reason)
         return AddItem(Player.PlayerData.source, item, amount, slot, info, reason)
     end)
@@ -93,6 +94,20 @@ AddEventHandler('QBCore:Server:PlayerLoaded', function(Player)
     QBCore.Functions.AddPlayerMethod(Player.PlayerData.source, 'SetInventory', function(items)
         SetInventory(Player.PlayerData.source, items)
     end)
+
+    local playerItems = Player.PlayerData.items
+    if playerItems then
+        local cashInInventory = 0
+        for _, item in pairs(playerItems) do
+            if item and item.name == 'cash' then
+                cashInInventory = cashInInventory + item.amount
+            end
+        end
+        if Player.PlayerData.money.cash ~= cashInInventory then
+            print(('[qb-inventory] Player %s (%s) had desynced cash. Correcting from %s to %s.'):format(Player.PlayerData.name, Player.PlayerData.citizenid, Player.PlayerData.money.cash, cashInInventory))
+            Player.Functions.SetMoney('cash', cashInInventory, 'login_sync')
+        end
+    end
 end)
 
 AddEventHandler('onResourceStart', function(resourceName)
