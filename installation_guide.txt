@@ -10,7 +10,11 @@ Follow these steps **very carefully** to ensure a smooth installation.
 Step 1: Download & Place the Resource
 
 1.  Download this resource's files
-2.  delete your old inventory and replace with `qb-inventory rework` 
+2.  delete your old inventory and replace with `qb-inventory` rework
+3.  Make sure the inventory folder name is:
+    ✅ qb-inventory
+    ❌ not qb-inventory-rework
+    ❌ not qb-inventory-rework-main 
 
 Step 2: Modify `qb-core`
 
