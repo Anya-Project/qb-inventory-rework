@@ -83,7 +83,7 @@ function self.Functions.AddMoney(moneytype, amount, reason)
     if amount < 0 then return end
     if not self.PlayerData.money[moneytype] then return false end
     if moneytype == 'cash' then
-        if exports['ap-inventory']:AddCash(self.PlayerData.source, amount) then
+        if exports['qb-inventory']:AddCash(self.PlayerData.source, amount) then
             if not self.Offline then
                 if amount > 100000 then
                     TriggerEvent('qb-log:server:CreateLog', 'playermoney', 'AddMoney (as item)', 'lightgreen', '**' .. GetPlayerName(self.PlayerData.source) .. ' (citizenid: ' .. self.PlayerData.citizenid .. ' | id: ' .. self.PlayerData.source .. ')** $' .. amount .. ' (cash) added, reason: ' .. reason, true)
@@ -120,7 +120,7 @@ function self.Functions.RemoveMoney(moneytype, amount, reason)
     if amount < 0 then return end
     if not self.PlayerData.money[moneytype] then return false end
     if moneytype == 'cash' then
-        if exports['ap-inventory']:RemoveCash(self.PlayerData.source, amount, reason) then
+        if exports['qb-inventory']:RemoveCash(self.PlayerData.source, amount, reason) then
             if not self.Offline then
                 if amount > 100000 then
                     TriggerEvent('qb-log:server:CreateLog', 'playermoney', 'RemoveMoney (as item)', 'red', '**' .. GetPlayerName(self.PlayerData.source) .. ' (citizenid: ' .. self.PlayerData.citizenid .. ' | id: ' .. self.PlayerData.source .. ')** $' .. amount .. ' (cash) removed, reason: ' .. reason, true)
@@ -170,18 +170,18 @@ function self.Functions.SetMoney(moneytype, amount, reason)
     if amount < 0 then return false end
     if not self.PlayerData.money[moneytype] then return false end
     if moneytype == 'cash' then
-        local currentCash = exports['ap-inventory']:GetItemCount(self.PlayerData.source, 'cash') or 0
+        local currentCash = exports['qb-inventory']:GetItemCount(self.PlayerData.source, 'cash') or 0
         local difference = amount - currentCash
         local success = false
         if difference > 0 then
-            success = exports['ap-inventory']:AddItem(self.PlayerData.source, 'cash', difference, nil, {}, 'setmoney_command')
+            success = exports['qb-inventory']:AddItem(self.PlayerData.source, 'cash', difference, nil, {}, 'setmoney_command')
         elseif difference < 0 then
-            success = exports['ap-inventory']:RemoveItem(self.PlayerData.source, 'cash', math.abs(difference), nil, 'setmoney_command')
+            success = exports['qb-inventory']:RemoveItem(self.PlayerData.source, 'cash', math.abs(difference), nil, 'setmoney_command')
         else
             success = true
         end
         if success then
-            local newTotalCash = exports['ap-inventory']:GetItemCount(self.PlayerData.source, 'cash') or 0
+            local newTotalCash = exports['qb-inventory']:GetItemCount(self.PlayerData.source, 'cash') or 0
             self.PlayerData.money.cash = newTotalCash
             if not self.Offline then
                 TriggerEvent('qb-log:server:CreateLog', 'playermoney', 'SetMoney (as item)', 'green', '**' .. GetPlayerName(self.PlayerData.source) .. ' (citizenid: ' .. self.PlayerData.citizenid .. ' | id: ' .. self.PlayerData.source .. ')** cash set to $' .. amount .. ', reason: ' .. reason)
@@ -208,8 +208,8 @@ function self.Functions.GetMoney(moneytype)
     if not moneytype then return false end
     moneytype = moneytype:lower()
     if moneytype == 'cash' then
-        if GetResourceState('ap-inventory') ~= 'missing' then
-            local cashCount = exports['ap-inventory']:GetItemCount(self.PlayerData.source, 'cash') or 0
+        if GetResourceState('qb-inventory') ~= 'missing' then
+            local cashCount = exports['qb-inventory']:GetItemCount(self.PlayerData.source, 'cash') or 0
             if self.PlayerData.money.cash ~= cashCount then
                 self.PlayerData.money.cash = cashCount
             end
@@ -279,8 +279,8 @@ function QBCore.Player.CheckPlayerData(source, PlayerData)
     end
     applyDefaults(PlayerData, QBCore.Config.Player.PlayerDefaults)
     ------------------------------------------- EDITED BY AP_CODE --------------------------------------------------
-    if GetResourceState('ap-inventory') ~= 'missing' then
-        PlayerData.items = exports['ap-inventory']:LoadInventory(PlayerData.source, PlayerData.citizenid)
+    if GetResourceState('qb-inventory') ~= 'missing' then
+        PlayerData.items = exports['qb-inventory']:LoadInventory(PlayerData.source, PlayerData.citizenid)
     end
     if PlayerData.items then
         local cashInInventory = 0
