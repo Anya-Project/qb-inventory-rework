@@ -71,9 +71,6 @@ Open `qb-core/server/player.lua` and find the following functions:
 
 Delete all four of these functions entirely and replace them with the code block below:
 
-<details>
-<summary>Click to view the replacement code for money functions</summary>
-
 ```lua
 ------------------------------------------- EDITED BY AP_CODE --------------------------------------------------
 function self.Functions.AddMoney(moneytype, amount, reason)
@@ -112,7 +109,8 @@ function self.Functions.AddMoney(moneytype, amount, reason)
     end
     return true
 end
-
+```
+```lua
 function self.Functions.RemoveMoney(moneytype, amount, reason)
     reason = reason or 'unknown'
     moneytype = moneytype:lower()
@@ -162,7 +160,8 @@ function self.Functions.RemoveMoney(moneytype, amount, reason)
     end
     return true
 end
-
+```
+```lua
 function self.Functions.SetMoney(moneytype, amount, reason)
     reason = reason or 'unknown'
     moneytype = moneytype:lower()
@@ -203,7 +202,8 @@ function self.Functions.SetMoney(moneytype, amount, reason)
     end
     return true
 end
-
+```
+```lua
 function self.Functions.GetMoney(moneytype)
     if not moneytype then return false end
     moneytype = moneytype:lower()
@@ -223,14 +223,10 @@ end
 ------------------------------------------- EDITED BY AP_CODE --------------------------------------------------
 ```
 
-</details>
 
 #### B. Replace the `CheckPlayerData` Function
 
 Still in `qb-core/server/player.lua`, find the function `QBCore.Player.CheckPlayerData`. Delete this function and replace it with the code block below. This change ensures the player's inventory is loaded correctly when they join the server.
-
-<details>
-<summary>Click to view the replacement code for CheckPlayerData</summary>
 
 ```lua
 function QBCore.Player.CheckPlayerData(source, PlayerData)
@@ -296,13 +292,8 @@ function QBCore.Player.CheckPlayerData(source, PlayerData)
 end
 ```
 
-</details>
-
 ### Step 3: Add Cash Item to `qb-core/shared/items.lua`
 
-<details>
-<summary>Click to view</summary>
-  
 ```lua
 ['cash'] = {
     name = 'cash',
@@ -316,7 +307,6 @@ end
     description = 'Don\'t spend it all in one place.'
 },
 ```
-</details>
 
 ### Step 4: Add Decay Rate to Food and Drinks
 
