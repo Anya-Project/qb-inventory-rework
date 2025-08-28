@@ -847,7 +847,7 @@ inventory[slot] = {
      if player and item == 'cash' then
         local currentCash = GetItemCount(identifier, 'cash') or 0
         player.Functions.SetMoney('cash', currentCash)
-        TriggerClientEvent('qb-inventory:client:updateCash', identifier, currentCash)
+        TriggerClientEvent('qb-inventory:client:updateInventory', identifier)
     end
     
     return true
@@ -949,7 +949,7 @@ function RemoveItem(identifier, item, amount, slot, reason)
     if player and itemName == 'cash' then
         local currentCash = GetItemCount(identifier, 'cash') or 0
         player.Functions.SetMoney('cash', currentCash)
-        TriggerClientEvent('qb-inventory:client:updateCash', identifier, currentCash)
+        TriggerClientEvent('qb-inventory:client:updateInventory', identifier)
     end
 
     return true

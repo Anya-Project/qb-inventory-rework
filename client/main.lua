@@ -29,13 +29,6 @@ AddEventHandler('onResourceStart', function(resourceName)
     end
 end)
 
-RegisterNetEvent('qb-inventory:client:updateCash', function(newAmount)
-    SendNUIMessage({
-        action = 'updateCash',
-        cash = newAmount
-    })
-end)
-
 RegisterNetEvent('qb-inventory:client:sendServerTime', function(serverTime)
     SendNUIMessage({
         action = 'setServerTime',

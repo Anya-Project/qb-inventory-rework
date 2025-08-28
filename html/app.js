@@ -412,13 +412,11 @@ const InventoryContainer = Vue.createApp({
       this.clearDragData();
     },
     handleDropOnPlayerSlot(targetSlot) {
-      
       if (this.isShopInventory && this.dragStartInventoryType === "other") {
         const { currentlyDraggingSlot, currentlyDraggingItem } = this;
         const targetInventory = this.getInventoryByType("player");
         const targetItem = targetInventory[targetSlot];
 
-        
         if (
           (targetItem && targetItem.name !== currentlyDraggingItem.name) ||
           (targetItem &&
@@ -429,8 +427,6 @@ const InventoryContainer = Vue.createApp({
           return;
         }
 
-        
-        
         const amountToPurchase =
           this.transferAmount !== null ? this.transferAmount : 1;
 
@@ -554,7 +550,6 @@ const InventoryContainer = Vue.createApp({
 
         const targetItem = targetInventory[targetSlot];
 
-        
         if (targetItem && sourceItem.name === targetItem.name) {
           const sourceHasExpiry = sourceItem.info && sourceItem.info.expiryDate;
           const targetHasExpiry = targetItem.info && targetItem.info.expiryDate;
@@ -593,7 +588,6 @@ const InventoryContainer = Vue.createApp({
             return;
           }
           if (sourceItem.name === targetItem.name) {
-            
             const originalAmount = sourceItem.amount;
             targetItem.amount += amountToTransfer;
             sourceItem.amount -= amountToTransfer;
@@ -609,7 +603,6 @@ const InventoryContainer = Vue.createApp({
               amountToTransfer
             );
           } else {
-            
             sourceInventory[this.currentlyDraggingSlot] = targetItem;
             targetInventory[targetSlot] = sourceItem;
             sourceInventory[this.currentlyDraggingSlot].slot =
@@ -625,7 +618,6 @@ const InventoryContainer = Vue.createApp({
             );
           }
         } else {
-          
           const originalAmount = sourceItem.amount;
           const remainingAmount = sourceItem.amount - amountToTransfer;
 
@@ -641,7 +633,6 @@ const InventoryContainer = Vue.createApp({
             sourceItem.amount = remainingAmount;
           }
 
-          
           this.postInventoryData(
             this.dragStartInventoryType,
             targetInventoryType,
@@ -671,8 +662,6 @@ const InventoryContainer = Vue.createApp({
         );
 
         if (response.data) {
-          
-          
           const sourceInventory = this.getInventoryByType("other");
           const amountToTransfer =
             transferAmount !== null ? transferAmount : sourceItem.amount;
@@ -687,7 +676,6 @@ const InventoryContainer = Vue.createApp({
             delete sourceInventory[sourceSlot];
           }
         } else {
-          
           this.inventoryError(sourceSlot);
         }
       } catch (error) {
@@ -923,10 +911,9 @@ const InventoryContainer = Vue.createApp({
 
           if (nextSlot !== null) {
             inventoryRef[nextSlot] = newItem;
-            inventoryRef[nextSlot].slot = nextSlot; 
+            inventoryRef[nextSlot].slot = nextSlot;
             inventoryRef[originalSlot] = { ...item, amount: oldItemAmount };
 
-            
             this.postInventoryData(
               inventoryType,
               inventoryType,
@@ -1208,24 +1195,6 @@ const InventoryContainer = Vue.createApp({
         this.giveAmount = 1;
       }
     },
-    updateCashAmount(newAmount) {
-      const cashItemSlot = Object.keys(this.playerInventory).find(
-        (slot) =>
-          this.playerInventory[slot] &&
-          this.playerInventory[slot].name === "cash"
-      );
-
-      if (cashItemSlot) {
-        if (newAmount > 0) {
-          this.playerInventory[cashItemSlot].amount = newAmount;
-        } else {
-          delete this.playerInventory[cashItemSlot];
-        }
-      } else if (newAmount > 0) {
-        axios.post("https://qb-inventory/CloseInventory", {}).then(() => {});
-        console.log("Cash item was not found, a refresh might be needed.");
-      }
-    },
     setActiveDropTarget(isActive) {
       this.activeDropTarget = isActive;
     },
@@ -1356,9 +1325,6 @@ const InventoryContainer = Vue.createApp({
           break;
         case "update":
           this.updateInventory(data);
-          break;
-        case "updateCash":
-          this.updateCashAmount(data.cash);
           break;
         case "toggleHotbar":
           this.toggleHotbar(data);
