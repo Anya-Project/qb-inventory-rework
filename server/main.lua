@@ -536,115 +536,92 @@ local function getIdentifier(inventoryId, src)
 end
 
 RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory, toInventory, fromSlot, toSlot, fromAmount, toAmount)
-    if toInventory:find('shop%-') then return end
-    if not fromInventory or not toInventory or not fromSlot or not toSlot or not fromAmount or not toAmount then return end
-    local src = source
-    
-    fromSlot, toSlot, fromAmount, toAmount = tonumber(fromSlot), tonumber(toSlot), tonumber(fromAmount), tonumber(toAmount)
-
-    local fromItem = getItem(fromInventory, src, fromSlot)
-    local toItem = getItem(toInventory, src, toSlot)
-
-    if not fromItem then 
-        return 
+     local function table_copy(orig)
+        local orig_type = type(orig)
+        local copy
+        if orig_type == 'table' then
+            copy = {}
+            for orig_key, orig_value in pairs(orig) do
+                copy[orig_key] = orig_value
+            end
+        else 
+            copy = orig
+        end
+        return copy
     end
 
-    local fromItemInfo = QBCore.Shared.Items[fromItem.name]
+    if toInventory:find('shop%-') then return end
+    if not fromInventory or not toInventory or not fromSlot or not toSlot or not fromAmount or not toAmount then return end
 
-    
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+    if not Player then return end
+
+    fromSlot, toSlot, fromAmount, toAmount = tonumber(fromSlot), tonumber(toSlot), tonumber(fromAmount), tonumber(toAmount)
+    local fromItem = getItem(fromInventory, src, fromSlot)
+    local toItem = getItem(toInventory, src, toSlot)
+    if not fromItem then return end
+    local serverFromAmount = fromItem.amount
+    if toAmount > serverFromAmount then
+        return
+    end
+    local fromItemInfo = QBCore.Shared.Items[fromItem.name]
     if fromInventory == toInventory then
         local inventoryId = getIdentifier(fromInventory, src)
         local TargetPlayer = QBCore.Functions.GetPlayer(inventoryId)
-        local inventoryItems
-
-        if TargetPlayer then
-            inventoryItems = TargetPlayer.PlayerData.items
-        elseif Drops[inventoryId] then
-            inventoryItems = Drops[inventoryId].items
-        elseif Inventories[inventoryId] then
-            inventoryItems = Inventories[inventoryId].items
-        end
-
+        local inventoryItems = (TargetPlayer and TargetPlayer.PlayerData.items) or (Drops[inventoryId] and Drops[inventoryId].items) or (Inventories[inventoryId] and Inventories[inventoryId].items)
         if not inventoryItems then return end
-
-        
-        local canStack = toItem and fromItem.name == toItem.name and not fromItemInfo.unique
-        if canStack then
-            
-            if fromItem.info and fromItem.info.expiryDate and toItem.info and toItem.info.expiryDate and fromItem.info.expiryDate ~= toItem.info.expiryDate then
-                canStack = false
+        local isSplit = not toItem and toAmount < serverFromAmount
+        if isSplit then
+            inventoryItems[fromSlot].amount = serverFromAmount - toAmount
+            local newItem = table_copy(fromItem)
+            newItem.amount = toAmount
+            newItem.slot = toSlot
+            inventoryItems[toSlot] = newItem
+        elseif toItem then
+            local canStack = fromItem.name == toItem.name and not fromItemInfo.unique and (not fromItem.info.expiryDate or fromItem.info.expiryDate == toItem.info.expiryDate)
+            if canStack then
+                inventoryItems[toSlot].amount = inventoryItems[toSlot].amount + toAmount
+                inventoryItems[fromSlot].amount = inventoryItems[fromSlot].amount - toAmount
+                if inventoryItems[fromSlot].amount <= 0 then
+                    inventoryItems[fromSlot] = nil
+                end
+            else 
+                inventoryItems[fromSlot], inventoryItems[toSlot] = inventoryItems[toSlot], inventoryItems[fromSlot]
+                inventoryItems[fromSlot].slot = fromSlot
+                inventoryItems[toSlot].slot = toSlot
             end
-        end
-
-        if canStack then
-            local totalAmount = fromItem.amount + toItem.amount
-            inventoryItems[toSlot].amount = totalAmount
-            inventoryItems[fromSlot] = nil
-        elseif not toItem and fromAmount > toAmount then 
-            
-            if inventoryItems[fromSlot] and inventoryItems[fromSlot].amount == fromAmount then
-                inventoryItems[fromSlot].amount = fromAmount - toAmount
-                local newItem = CopyTable(fromItem)
-                newItem.amount = toAmount
-                newItem.slot = toSlot
-                inventoryItems[toSlot] = newItem
-            else
-                
-                return
-            end
-        elseif toItem then 
-            inventoryItems[fromSlot], inventoryItems[toSlot] = inventoryItems[toSlot], inventoryItems[fromSlot]
-            inventoryItems[fromSlot].slot = fromSlot
-            inventoryItems[toSlot].slot = toSlot
-        else 
+        else
             inventoryItems[toSlot] = fromItem
             inventoryItems[fromSlot] = nil
             inventoryItems[toSlot].slot = toSlot
         end
 
-        if TargetPlayer then
-            TargetPlayer.Functions.SetPlayerData('items', inventoryItems)
-        end
-        return 
+        if TargetPlayer then TargetPlayer.Functions.SetPlayerData('items', inventoryItems) end
+        return
     end
 
-    
-    if fromItem then
-        if not toItem and toAmount > fromItem.amount then return end
-        if fromInventory == 'player' and toInventory ~= 'player' then checkWeapon(src, fromItem) end
+    local fromId = getIdentifier(fromInventory, src)
+    local toId = getIdentifier(toInventory, src)
+    local canStackAcross = toItem and fromItem.name == toItem.name and not fromItemInfo.unique and (not fromItem.info.expiryDate or fromItem.info.expiryDate == toItem.info.expiryDate)
 
-        local fromId = getIdentifier(fromInventory, src)
-        local toId = getIdentifier(toInventory, src)
-
-        
-        local canStackAcross = toItem and fromItem.name == toItem.name and not fromItemInfo.unique
-        if canStackAcross then
-            if fromItem.info and fromItem.info.expiryDate and toItem.info and toItem.info.expiryDate and fromItem.info.expiryDate ~= toItem.info.expiryDate then
-                canStackAcross = false
-            end
+    if canStackAcross then
+        if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'stacked item') then
+            AddItem(toId, toItem.name, toAmount, toSlot, toItem.info, 'stacked item')
         end
-
-        if canStackAcross then
-            if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'stacked item') then
-                AddItem(toId, toItem.name, toAmount, toSlot, toItem.info, 'stacked item')
-            end
-        elseif not toItem and toAmount < fromAmount then 
-            if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'split item') then
-                AddItem(toId, fromItem.name, toAmount, toSlot, fromItem.info, 'split item')
+    elseif not toItem and toAmount < serverFromAmount then
+        if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'split item') then
+            AddItem(toId, fromItem.name, toAmount, toSlot, fromItem.info, 'split item')
+        end
+    else
+        if toItem then
+            if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'swapped item') and RemoveItem(toId, toItem.name, toItem.amount, toSlot, 'swapped item') then
+                AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'swapped item')
+                AddItem(fromId, toItem.name, toItem.amount, fromSlot, toItem.info, 'swapped item')
             end
         else
-            if toItem then 
-                local fromItemAmount = fromItem.amount
-                local toItemAmount = toItem.amount
-
-                if RemoveItem(fromId, fromItem.name, fromItemAmount, fromSlot, 'swapped item') and RemoveItem(toId, toItem.name, toItemAmount, toSlot, 'swapped item') then
-                    AddItem(toId, fromItem.name, fromItemAmount, toSlot, fromItem.info, 'swapped item')
-                    AddItem(fromId, toItem.name, toItemAmount, fromSlot, toItem.info, 'swapped item')
-                end
-            else 
-                if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'moved item') then
-                    AddItem(toId, fromItem.name, toAmount, toSlot, fromItem.info, 'moved item')
-                end
+            if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'moved item') then
+                AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'moved item')
             end
         end
     end
