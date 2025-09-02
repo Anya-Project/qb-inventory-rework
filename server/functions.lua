@@ -91,34 +91,36 @@ end
 exports('LoadInventory', LoadInventory)
 
 function SaveInventory(source, offline)
-    local PlayerData
-    if offline then
-        PlayerData = source
-    else
-        local Player = QBCore.Functions.GetPlayer(source)
-        if not Player then return end
-        PlayerData = Player.PlayerData
-    end
-
-    local items = PlayerData.items
-    local ItemsJson = {}
-
-    if items and next(items) then
-        for slot, item in pairs(items) do
-            if item then
-                ItemsJson[#ItemsJson + 1] = {
-                    name = item.name,
-                    amount = item.amount,
-                    info = item.info,
-                    type = item.type,
-                    slot = slot,
-                }
-            end
+    CreateThread(function()
+        local PlayerData
+        if offline then
+            PlayerData = source
+        else
+            local Player = QBCore.Functions.GetPlayer(source)
+            if not Player then return end
+            PlayerData = Player.PlayerData
         end
-        MySQL.prepare('UPDATE players SET inventory = ? WHERE citizenid = ?', { json.encode(ItemsJson), PlayerData.citizenid })
-    else
-        MySQL.prepare('UPDATE players SET inventory = ? WHERE citizenid = ?', { '[]', PlayerData.citizenid })
-    end
+
+        local items = PlayerData.items
+        local ItemsJson = {}
+
+        if items and next(items) then
+            for slot, item in pairs(items) do
+                if item then
+                    ItemsJson[#ItemsJson + 1] = {
+                        name = item.name,
+                        amount = item.amount,
+                        info = item.info,
+                        type = item.type,
+                        slot = slot,
+                    }
+                end
+            end
+            MySQL.prepare.await('UPDATE players SET inventory = ? WHERE citizenid = ?', { json.encode(ItemsJson), PlayerData.citizenid })
+        else
+            MySQL.prepare.await('UPDATE players SET inventory = ? WHERE citizenid = ?', { '[]', PlayerData.citizenid })
+        end
+    end)
 end
 
 function AddCash(source, amount, reason)
@@ -772,16 +774,22 @@ function AddItem(identifier, item, amount, slot, info, reason)
 
     amount = tonumber(amount) or 1
     local updated = false
-    if not itemInfo.unique and not itemInfo.decayrate then
-        slot = slot or GetFirstSlotByItem(inventory, item)
-        if slot then
-            for _, invItem in pairs(inventory) do
-                if invItem.slot == slot then
-                    invItem.amount = invItem.amount + amount
-                    updated = true
-                    break
+    if not itemInfo.unique then
+        local targetSlot = slot
+        if not targetSlot then
+            for k, v in pairs(inventory) do
+                if v.name == item then
+                    if not itemInfo.decayrate then
+                        targetSlot = k
+                        break
+                    end
                 end
             end
+        end
+
+        if targetSlot and inventory[targetSlot] and inventory[targetSlot].name == item then
+            inventory[targetSlot].amount = inventory[targetSlot].amount + amount
+            updated = true
         end
     end
 
@@ -798,21 +806,21 @@ function AddItem(identifier, item, amount, slot, info, reason)
             newItemInfo.expiryDate = currentTime + itemInfo.decayrate
         end
 
-inventory[slot] = {
-    name = item,
-    amount = amount,
-    info = newItemInfo, 
-    label = itemInfo.label,
-    description = itemInfo.description or '',
-    weight = itemInfo.weight,
-    type = itemInfo.type,
-    unique = itemInfo.unique,
-    useable = itemInfo.useable,
-    image = itemInfo.image,
-    shouldClose = itemInfo.shouldClose,
-    slot = slot,
-    combinable = itemInfo.combinable
-}
+        inventory[slot] = {
+            name = item,
+            amount = amount,
+            info = newItemInfo, 
+            label = itemInfo.label,
+            description = itemInfo.description or '',
+            weight = itemInfo.weight,
+            type = itemInfo.type,
+            unique = itemInfo.unique,
+            useable = itemInfo.useable,
+            image = itemInfo.image,
+            shouldClose = itemInfo.shouldClose,
+            slot = slot,
+            combinable = itemInfo.combinable
+        }
 
         if itemInfo.type == 'weapon' then
             if not inventory[slot].info.serie then
@@ -833,7 +841,7 @@ inventory[slot] = {
         'playerinventory',
         'Item Added',
         'green',
-        '**Inventory:** ' .. invName .. ' (Slot: ' .. slot .. ')\n' ..
+        '**Inventory:** ' .. invName .. ' (Slot: ' .. tostring(slot) .. ')\n' ..
         '**Item:** ' .. item .. '\n' ..
         '**Amount:** ' .. amount .. '\n' ..
         '**Reason:** ' .. addReason .. '\n' ..

@@ -178,28 +178,24 @@
                   </div>
                 </div>
               </div>
-
-              
               <div class="attachment-slots-column">
                 <h4 class="column-title">Attachment Slots</h4>
                 <div class="slots-container">
-                  
                   <div class="attachment-slot-wrapper">
                     <div
                       class="attachment-slot-box"
-                      :class="{ 'filled': getAttachmentByType('suppressor') }"
-                      @click="getAttachmentByType('suppressor') && removeAttachment(getAttachmentByType('suppressor'))"
-                      v-tooltip.left-end="getAttachmentTooltip('suppressor')"
+                      :class="{ 'filled': getAttachmentByType('suppressor') || getAttachmentByType('muzzle') }"
+                      @click="(getAttachmentByType('suppressor') || getAttachmentByType('muzzle')) && removeAttachment(getAttachmentByType('suppressor') || getAttachmentByType('muzzle'))"
+                      v-tooltip.left-end="getAttachmentTooltip('suppressor', 'muzzle')"
                     >
                       <img
-                        v-if="getAttachmentByType('suppressor')"
-                        :src="'images/' + getAttachmentByType('suppressor').attachment + '.png'"
+                        v-if="getAttachmentByType('suppressor') || getAttachmentByType('muzzle')"
+                        :src="'images/' + (getAttachmentByType('suppressor') || getAttachmentByType('muzzle')).attachment + '.png'"
                       />
                       <i v-else class="fa-solid fa-plus empty-slot-icon"></i>
                     </div>
                     <span class="slot-type-label">Muzzle</span>
                   </div>
-                  
                   <div class="attachment-slot-wrapper">
                     <div
                       class="attachment-slot-box"
@@ -215,7 +211,6 @@
                     </div>
                     <span class="slot-type-label">Accessory</span>
                   </div>
-                  
                   <div class="attachment-slot-wrapper">
                     <div
                       class="attachment-slot-box"
@@ -245,6 +240,36 @@
                       <i v-else class="fa-solid fa-plus empty-slot-icon"></i>
                     </div>
                     <span class="slot-type-label">Optics</span>
+                  </div>
+                  <div class="attachment-slot-wrapper">
+                    <div
+                      class="attachment-slot-box"
+                      :class="{ 'filled': getAttachmentByType('clip') || getAttachmentByType('drum') }"
+                      @click="(getAttachmentByType('clip') || getAttachmentByType('drum')) && removeAttachment(getAttachmentByType('clip') || getAttachmentByType('drum'))"
+                      v-tooltip.left-end="getAttachmentTooltip('clip', 'drum')"
+                    >
+                      <img
+                        v-if="getAttachmentByType('clip') || getAttachmentByType('drum')"
+                        :src="'images/' + (getAttachmentByType('clip') || getAttachmentByType('drum')).attachment + '.png'"
+                      />
+                      <i v-else class="fa-solid fa-plus empty-slot-icon"></i>
+                    </div>
+                    <span class="slot-type-label">Magazine</span>
+                  </div>
+                  <div class="attachment-slot-wrapper">
+                    <div
+                      class="attachment-slot-box"
+                      :class="{ 'filled': getAttachmentByType('camo') || getAttachmentByType('finish') }"
+                      @click="(getAttachmentByType('camo') || getAttachmentByType('finish')) && removeAttachment(getAttachmentByType('camo') || getAttachmentByType('finish'))"
+                      v-tooltip.left-end="getAttachmentTooltip('camo', 'finish')"
+                    >
+                      <img
+                        v-if="getAttachmentByType('camo') || getAttachmentByType('finish')"
+                        :src="'images/' + (getAttachmentByType('camo') || getAttachmentByType('finish')).attachment + '.png'"
+                      />
+                      <i v-else class="fa-solid fa-plus empty-slot-icon"></i>
+                    </div>
+                    <span class="slot-type-label">Skin / Tint</span>
                   </div>
                 </div>
               </div>
@@ -289,6 +314,10 @@
                   :key="slot"
                   class="item-slot"
                   :data-slot="slot"
+                  :class="{ 
+      'has-decay': getItemInSlot(slot, 'other') && getItemInSlot(slot, 'other').info.expiryDate && !isItemExpired(getItemInSlot(slot, 'other')),
+      'expired-item': isItemExpired(getItemInSlot(slot, 'other'))
+  }"
                   @mousedown="event => handleMouseDown(event, slot, 'other')"
                   @dragover.prevent
                 >
@@ -319,6 +348,15 @@
                         class="item-slot-durability-fill"
                         v-if="getItemInSlot(slot, 'other').info && 'quality' in getItemInSlot(slot, 'other').info"
                         :style="{ width: (100 - getItemInSlot(slot, 'other').info.quality) + '%' }"
+                      ></div>
+                    </div>
+                    <div
+                      class="item-slot-expiry"
+                      v-if="getItemInSlot(slot, 'other').info && getItemInSlot(slot, 'other').info.expiryDate"
+                    >
+                      <div
+                        class="item-slot-expiry-fill"
+                        :style="{ width: (100 - getExpiryPercentage(getItemInSlot(slot, 'other'))) + '%' }"
                       ></div>
                     </div>
                   </div>
@@ -398,7 +436,11 @@
         class="context-menu"
         :style="{ top: contextMenuPosition.top, left: contextMenuPosition.left }"
       >
-        <li v-if="contextMenuItem.useable" @click="useItem(contextMenuItem)">
+        <li
+          v-if="contextMenuItem.useable"
+          @click="useItem(contextMenuItem)"
+          :class="{ 'disabled': isItemExpired(contextMenuItem) }"
+        >
           Use
         </li>
         <li @mouseover="handleGiveHover" @mouseleave="handleGiveLeave">

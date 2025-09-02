@@ -4,7 +4,7 @@
   --background: #121212;
   --surface: rgba(26, 26, 26, 0.85);
   --surface-border: rgba(60, 60, 60, 0.5);
-  --primary: #0075fc; 
+  --primary: #0075fc;
 
   --on-primary: #ffffff;
   --text-primary: #e0e0e0;
@@ -371,16 +371,16 @@ body {
   background-color: var(--surface);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius);
-  padding: 5px 0;
+  padding: 4px 0;
   list-style: none;
   margin: 0;
-  min-width: 150px;
+  min-width: 130px;
 }
 
 .context-menu li {
-  padding: 8px 15px;
+  padding: 6px 12px;
   cursor: pointer;
-  font-size: 0.9em;
+  font-size: 0.8em;
   position: relative;
   color: var(--text-secondary);
   transition: all 0.2s ease;
@@ -414,7 +414,7 @@ body {
   color: var(--text-primary) !important;
   border-radius: var(--radius) !important;
   border: 1px solid var(--surface-border) !important;
-  padding: 10px !important;
+  padding: 8px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
 }
 
@@ -424,8 +424,8 @@ body {
 
 .custom-tooltip {
   font-family: var(--font-family);
-  font-size: 0.85em;
-  max-width: 250px;
+  font-size: 0.8em;
+  max-width: 220px;
 }
 
 .tooltip-header {
@@ -500,40 +500,32 @@ body {
 
 .notification-container {
   position: fixed;
-
-  bottom: 5vh;
-
+  bottom: 3vh;
   left: 50%;
   transform: translateX(-50%);
-
   z-index: 500;
 }
 
 .notification-slot {
-  width: 120px;
-
-  padding: 8px;
-
+  width: 110px;
+  padding: 6px;
   background-color: var(--surface);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-
   display: flex;
   flex-direction: column;
-
   align-items: center;
-
-  gap: 5px;
+  gap: 4px;
 }
 
 .notification-title {
   width: 100%;
   text-align: center;
-  font-size: 0.8em;
+  font-size: 0.75em;
   font-weight: var(--font-weight-bold);
   color: var(--primary);
-  padding-bottom: 5px;
+  padding-bottom: 4px;
   border-bottom: 1px solid var(--surface-border);
 }
 
@@ -542,9 +534,8 @@ body {
 }
 
 .notification-slot .item-slot-img {
-  width: 70px;
-
-  height: 70px;
+  width: 60px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -618,7 +609,7 @@ body {
 
 .drop-zone-content p {
   margin: 0;
-  font-size: 1.1em;
+  font-size: 1em;
   font-weight: var(--font-weight-bold);
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -968,8 +959,10 @@ body {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-around;
+  justify-content: flex-start;
   gap: 10px;
+  overflow-y: auto;
+  padding-right: 5px;
 }
 
 .attachment-slot-wrapper {
@@ -1028,4 +1021,10 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.context-menu li.disabled {
+  color: #666;
+  cursor: not-allowed;
+  pointer-events: none;
 }

@@ -3,6 +3,8 @@ Inventories = {}
 Drops = {}
 RegisteredShops = {}
 
+Config.Debug = false -- Set to false to disable console logs
+
 local function CopyTable(tbl)
     if type(tbl) ~= 'table' then return tbl end
     local newTbl = {}
@@ -176,6 +178,15 @@ RegisterNetEvent('qb-inventory:server:openVending', function(data)
     OpenShop(src, 'vending')
 end)
 
+local function GetItemCountInMap(items)
+    if not items then return 0 end
+    local count = 0
+    for _ in pairs(items) do
+        count = count + 1
+    end
+    return count
+end
+
 RegisterNetEvent('qb-inventory:server:closeInventory', function(inventory)
     local src = source
     local QBPlayer = QBCore.Functions.GetPlayer(src)
@@ -189,25 +200,38 @@ RegisterNetEvent('qb-inventory:server:closeInventory', function(inventory)
     end
     if Drops[inventory] then
         Drops[inventory].isOpen = false
-        if #Drops[inventory].items == 0 and not Drops[inventory].isOpen then 
+        if GetItemCountInMap(Drops[inventory].items) == 0 and not Drops[inventory].isOpen then 
+            if Config.Debug then print(('[INV_DEBUG_SERVER] Drop bag %s is empty, deleting.'):format(inventory)) end
             TriggerClientEvent('qb-inventory:client:removeDropTarget', -1, Drops[inventory].entityId)
             Wait(500)
             local entity = NetworkGetEntityFromNetworkId(Drops[inventory].entityId)
             if DoesEntityExist(entity) then DeleteEntity(entity) end
             Drops[inventory] = nil
+        else
+            if Config.Debug then print(('[INV_DEBUG_SERVER] Drop bag %s is not empty (%s items), keeping it.'):format(inventory, GetItemCountInMap(Drops[inventory].items))) end
         end
         return
     end
-    if not Inventories[inventory] then return end
+     if not Inventories[inventory] then return end
     Inventories[inventory].isOpen = false
-    MySQL.prepare('INSERT INTO inventories (identifier, items) VALUES (?, ?) ON DUPLICATE KEY UPDATE items = ?', { inventory, json.encode(Inventories[inventory].items), json.encode(Inventories[inventory].items) })
+
+    CreateThread(function()
+        MySQL.prepare.await('INSERT INTO inventories (identifier, items) VALUES (?, ?) ON DUPLICATE KEY UPDATE items = ?', { inventory, json.encode(Inventories[inventory].items), json.encode(Inventories[inventory].items) })
+    end)
 end)
 
 RegisterNetEvent('qb-inventory:server:useItem', function(item)
     local src = source
     local itemData = GetItemBySlot(src, item.slot)
     if not itemData then return end
+    if itemData.name == 'cash' then
+        return
+    end
     local itemInfo = QBCore.Shared.Items[itemData.name]
+    if itemData.info and itemData.info.expiryDate and os.time() >= itemData.info.expiryDate then
+        TriggerClientEvent('QBCore:Notify', src, Lang:t('notify.item_expired'), 'error')
+        return
+    end
     if itemData.type == 'weapon' then
         TriggerClientEvent('qb-weapons:client:UseWeapon', src, itemData, itemData.info.quality and itemData.info.quality > 0)
         TriggerClientEvent('qb-inventory:client:ItemBox', src, itemInfo, 'use')
@@ -261,8 +285,6 @@ RegisterNetEvent('qb-inventory:server:useItem', function(item)
         end
     else
         UseItem(itemData.name, src, itemData)
-        -- print(('DEBUG: Triggering ItemBox for player %s with item: %s'):format(src, json.encode(itemInfo)))
-
         TriggerClientEvent('qb-inventory:client:ItemBox', src, itemInfo, 'use')
     end
 end)
@@ -312,24 +334,59 @@ QBCore.Functions.CreateCallback('qb-inventory:server:createDrop', function(sourc
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then
+        if Config.Debug then print('[INV_DEBUG_SERVER] createDrop failed: Player object not found.') end
         cb(false)
         return
     end
+
+    local fromSlot = tonumber(item.fromSlot)
+    local amountToDrop = tonumber(item.amount)
+
+    if not fromSlot or not amountToDrop or amountToDrop <= 0 then
+        if Config.Debug then print(('[INV_DEBUG_SERVER] createDrop failed: Invalid slot or amount from client. Slot: %s, Amount: %s'):format(tostring(fromSlot), tostring(amountToDrop))) end
+        cb(false)
+        return
+    end
+
+    if Config.Debug then print(('[INV_DEBUG_SERVER] createDrop: Processing drop of %s %s from slot %s.'):format(amountToDrop, item.name, fromSlot)) end
+
+    local itemOnServer = Player.PlayerData.items[fromSlot]
+
+    if not itemOnServer then
+        if Config.Debug then print(('[INV_DEBUG_SERVER] createDrop failed: Slot %s is EMPTY on server.'):format(fromSlot)) end
+        cb(false)
+        return
+    end
+
+    if itemOnServer.name ~= item.name then
+        if Config.Debug then print(('[INV_DEBUG_SERVER] createDrop failed: Item name mismatch. Client sent "%s", but server has "%s" in slot %s.'):format(item.name, itemOnServer.name, fromSlot)) end
+        cb(false)
+        return
+    end
+
+    if amountToDrop > itemOnServer.amount then
+        if Config.Debug then print(('[INV_DEBUG_SERVER] createDrop failed: Amount mismatch. Client wants to drop %s, but server only has %s in slot %s.'):format(amountToDrop, itemOnServer.amount, fromSlot)) end
+        cb(false)
+        return
+    end
+
     local playerPed = GetPlayerPed(src)
     local playerCoords = GetEntityCoords(playerPed)
-    if RemoveItem(src, item.name, item.amount, item.fromSlot, 'dropped item') then
+
+    if RemoveItem(src, item.name, amountToDrop, fromSlot, 'dropped item') then
+        if Config.Debug then print('[INV_DEBUG_SERVER] createDrop: RemoveItem successful. Creating drop object.') end
         if item.type == 'weapon' then checkWeapon(src, item) end
         TaskPlayAnim(playerPed, 'pickup_object', 'pickup_low', 8.0, -8.0, 2000, 0, 0, false, false, false)
         local bag = CreateObjectNoOffset(Config.ItemDropObject, playerCoords.x + 0.5, playerCoords.y + 0.5, playerCoords.z, true, true, false)
         local dropId = NetworkGetNetworkIdFromEntity(bag)
         local newDropId = 'drop-' .. dropId
-        local itemsTable = setmetatable({ item }, {
-            __len = function(t)
-                local length = 0
-                for _ in pairs(t) do length += 1 end
-                return length
-            end
-        })
+        
+        local itemsTable = {}
+        local newItemForDrop = CopyTable(itemOnServer)
+        newItemForDrop.amount = amountToDrop
+        newItemForDrop.slot = 1
+        itemsTable[1] = newItemForDrop
+
         if not Drops[newDropId] then
             Drops[newDropId] = {
                 name = newDropId,
@@ -344,7 +401,11 @@ QBCore.Functions.CreateCallback('qb-inventory:server:createDrop', function(sourc
             }
             TriggerClientEvent('qb-inventory:client:setupDropTarget', -1, dropId)
         else
-            table.insert(Drops[newDropId].items, item)
+            local freeSlot = GetFirstFreeSlot(Drops[newDropId].items, Drops[newDropId].slots)
+            if freeSlot then
+                newItemForDrop.slot = freeSlot
+                Drops[newDropId].items[freeSlot] = newItemForDrop
+            end
         end
         
         local responseData = {
@@ -353,11 +414,13 @@ QBCore.Functions.CreateCallback('qb-inventory:server:createDrop', function(sourc
                 name = newDropId,
                 label = 'Drop',
                 maxweight = Config.DropSize.maxweight,
-                slots = Config.DropSize.slots
+                slots = Config.DropSize.slots,
+                inventory = itemsTable
             }
         }
         cb(responseData)
     else
+        if Config.Debug then print(('[INV_DEBUG_SERVER] createDrop failed: RemoveItem returned false unexpectedly for item %s, amount %s, slot %s'):format(item.name, amountToDrop, fromSlot)) end
         cb(false)
     end
 end)
@@ -536,7 +599,14 @@ local function getIdentifier(inventoryId, src)
 end
 
 RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory, toInventory, fromSlot, toSlot, fromAmount, toAmount)
-     local function table_copy(orig)
+    if Config.Debug then
+        print(('[INV_DEBUG_SERVER] SetInventoryData Received from source: %s'):format(source))
+        print(('[INV_DEBUG_SERVER] > fromInventory: %s | toInventory: %s'):format(tostring(fromInventory), tostring(toInventory)))
+        print(('[INV_DEBUG_SERVER] > fromSlot: %s | toSlot: %s'):format(tostring(fromSlot), tostring(toSlot)))
+        print(('[INV_DEBUG_SERVER] > fromAmount (original amount): %s | toAmount (amount moved): %s'):format(tostring(fromAmount), tostring(toAmount)))
+    end
+    
+    local function table_copy(orig)
         local orig_type = type(orig)
         local copy
         if orig_type == 'table' then
@@ -560,66 +630,93 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory,
     fromSlot, toSlot, fromAmount, toAmount = tonumber(fromSlot), tonumber(toSlot), tonumber(fromAmount), tonumber(toAmount)
     local fromItem = getItem(fromInventory, src, fromSlot)
     local toItem = getItem(toInventory, src, toSlot)
-    if not fromItem then return end
+    if not fromItem then 
+        if Config.Debug then print('[INV_DEBUG_SERVER] ERROR: fromItem is nil. Aborting.') end
+        return 
+    end
+    
+    if Config.Debug then
+        print('[INV_DEBUG_SERVER] > fromItem: ' .. json.encode(fromItem))
+        print('[INV_DEBUG_SERVER] > toItem: ' .. json.encode(toItem))
+    end
+
     local serverFromAmount = fromItem.amount
     if toAmount > serverFromAmount then
+        if Config.Debug then print(('[INV_DEBUG_SERVER] ERROR: Client tried to move %s but server only has %s. Aborting.'):format(toAmount, serverFromAmount)) end
         return
     end
     local fromItemInfo = QBCore.Shared.Items[fromItem.name]
     if fromInventory == toInventory then
+        if Config.Debug then print('[INV_DEBUG_SERVER] > Action: Same Inventory Move') end
         local inventoryId = getIdentifier(fromInventory, src)
         local TargetPlayer = QBCore.Functions.GetPlayer(inventoryId)
-        local inventoryItems = (TargetPlayer and TargetPlayer.PlayerData.items) or (Drops[inventoryId] and Drops[inventoryId].items) or (Inventories[inventoryId] and Inventories[inventoryId].items)
+        local isDrop = Drops[inventoryId]
+        local isStash = Inventories[inventoryId]
+        local inventoryItems = (TargetPlayer and TargetPlayer.PlayerData.items) or (isDrop and isDrop.items) or (isStash and isStash.items)
         if not inventoryItems then return end
         local isSplit = not toItem and toAmount < serverFromAmount
         if isSplit then
+            if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: isSplit') end
             inventoryItems[fromSlot].amount = serverFromAmount - toAmount
             local newItem = table_copy(fromItem)
             newItem.amount = toAmount
             newItem.slot = toSlot
             inventoryItems[toSlot] = newItem
         elseif toItem then
-            local canStack = fromItem.name == toItem.name and not fromItemInfo.unique and (not fromItem.info.expiryDate or fromItem.info.expiryDate == toItem.info.expiryDate)
+            local canStack = fromItem.name == toItem.name and not fromItemInfo.unique and (not fromItem.info.expiryDate or (fromItem.info.expiryDate and toItem.info.expiryDate and fromItem.info.expiryDate == toItem.info.expiryDate))
             if canStack then
+                if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: canStack') end
                 inventoryItems[toSlot].amount = inventoryItems[toSlot].amount + toAmount
                 inventoryItems[fromSlot].amount = inventoryItems[fromSlot].amount - toAmount
                 if inventoryItems[fromSlot].amount <= 0 then
                     inventoryItems[fromSlot] = nil
                 end
             else 
+                if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Swap') end
                 inventoryItems[fromSlot], inventoryItems[toSlot] = inventoryItems[toSlot], inventoryItems[fromSlot]
                 inventoryItems[fromSlot].slot = fromSlot
                 inventoryItems[toSlot].slot = toSlot
             end
         else
+            if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Move to empty slot') end
             inventoryItems[toSlot] = fromItem
             inventoryItems[fromSlot] = nil
             inventoryItems[toSlot].slot = toSlot
         end
-
-        if TargetPlayer then TargetPlayer.Functions.SetPlayerData('items', inventoryItems) end
+        if TargetPlayer then 
+            TargetPlayer.Functions.SetPlayerData('items', inventoryItems) 
+        elseif isDrop then
+            Drops[inventoryId].items = inventoryItems
+        elseif isStash then
+            Inventories[inventoryId].items = inventoryItems
+        end
         return
     end
 
+    if Config.Debug then print('[INV_DEBUG_SERVER] > Action: Different Inventory Move') end
     local fromId = getIdentifier(fromInventory, src)
     local toId = getIdentifier(toInventory, src)
-    local canStackAcross = toItem and fromItem.name == toItem.name and not fromItemInfo.unique and (not fromItem.info.expiryDate or fromItem.info.expiryDate == toItem.info.expiryDate)
+    local canStackAcross = toItem and fromItem.name == toItem.name and not fromItemInfo.unique and (not fromItem.info.expiryDate or (fromItem.info.expiryDate and toItem.info.expiryDate and fromItem.info.expiryDate == toItem.info.expiryDate))
 
     if canStackAcross then
+        if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: canStackAcross') end
         if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'stacked item') then
             AddItem(toId, toItem.name, toAmount, toSlot, toItem.info, 'stacked item')
         end
     elseif not toItem and toAmount < serverFromAmount then
+        if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Split across inventories') end
         if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'split item') then
             AddItem(toId, fromItem.name, toAmount, toSlot, fromItem.info, 'split item')
         end
     else
         if toItem then
+            if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Swap across inventories') end
             if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'swapped item') and RemoveItem(toId, toItem.name, toItem.amount, toSlot, 'swapped item') then
                 AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'swapped item')
                 AddItem(fromId, toItem.name, toItem.amount, fromSlot, toItem.info, 'swapped item')
             end
         else
+            if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Move to empty slot across inventories') end
             if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'moved item') then
                 AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'moved item')
             end

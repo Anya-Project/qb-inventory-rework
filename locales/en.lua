@@ -31,6 +31,7 @@ local Translations = {
         ['cgitem'] = 'Can\'t give item!',
         ['idne'] = 'Item Does Not Exist',
         ['pdne'] = 'Player Is Not Online',
+        ['item_expired'] = 'This item has expired.',
     },
     inf_mapping = {
         ['opn_inv'] = 'Open Inventory',

@@ -55,17 +55,15 @@ local function FormatWeaponAttachments(itemdata)
     local weaponName = itemdata.name
     local WeaponAttachments = exports['qb-weapons']:getConfigWeaponAttachments()
     if not WeaponAttachments then return {} end
-    for attachmentType, weapons in pairs(WeaponAttachments) do
-        local componentHash = weapons[weaponName]
-        if componentHash then
-            for _, attachmentData in pairs(itemdata.info.attachments) do
-                if attachmentData.component == componentHash then
-                    local label = QBCore.Shared.Items[attachmentType] and QBCore.Shared.Items[attachmentType].label or 'Unknown'
-                    attachments[#attachments + 1] = {
-                        attachment = attachmentType,
-                        label = label
-                    }
-                end
+    for _, attachmentData in ipairs(itemdata.info.attachments) do
+        for attachmentType, weapons in pairs(WeaponAttachments) do
+            if weapons[weaponName] and weapons[weaponName] == attachmentData.component then
+                local label = QBCore.Shared.Items[attachmentType] and QBCore.Shared.Items[attachmentType].label or 'Unknown Attachment'
+                table.insert(attachments, {
+                    attachment = attachmentType,
+                    label = label
+                })
+                break
             end
         end
     end
