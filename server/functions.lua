@@ -800,8 +800,13 @@ function AddItem(identifier, item, amount, slot, info, reason)
             return false
         end
         local newItemInfo = info or {}
+        local currentTime = os.time()
+
+        if not newItemInfo.creationDate then
+        newItemInfo.creationDate = currentTime
+    end
+
         if itemInfo.decayrate and not newItemInfo.creationDate then
-            local currentTime = os.time()
             newItemInfo.creationDate = currentTime
             newItemInfo.expiryDate = currentTime + itemInfo.decayrate
         end

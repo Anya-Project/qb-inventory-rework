@@ -43,16 +43,13 @@ CreateThread(function()
     end
 end)
 
-
-
-
-AddEventHandler('playerDropped', function()
+AddEventHandler('QBCore:Server:PlayerUnloaded', function(source)
     for _, inv in pairs(Inventories) do
         if inv.isOpen == source then
             inv.isOpen = false
         end
     end
-end)
+end)    
 
 AddEventHandler('txAdmin:events:serverShuttingDown', function()
     for inventory, data in pairs(Inventories) do

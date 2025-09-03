@@ -4,7 +4,7 @@
   --background: #121212;
   --surface: rgba(26, 26, 26, 0.85);
   --surface-border: rgba(60, 60, 60, 0.5);
-  --primary: #0075fc;
+  --primary: #0077ffbd;
 
   --on-primary: #ffffff;
   --text-primary: #e0e0e0;
@@ -19,7 +19,7 @@
   --font-weight-medium: 500;
   --font-weight-bold: 700;
 
-  --radius: 4px;
+  --radius: 8px;
   --item-slot-gap: 4px;
 }
 
@@ -70,12 +70,13 @@ body {
 .inventory-section {
   width: 40vw;
   height: 65vh;
-  background-color: var(--surface);
-  border: 1px solid var(--surface-border);
+  background-color: rgba(26, 26, 26, 0.719);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
@@ -98,9 +99,15 @@ body {
   margin-bottom: 8px;
 }
 
-.inventory-label {
+.inventory-label p {
+  margin: 0;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
+  font-weight: var(--font-weight-bold);
+  background: linear-gradient(to right, #ffffff, #a7a7a7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .current-weight {
@@ -148,17 +155,31 @@ body {
   position: relative;
   width: 100%;
   padding-top: 100%;
-
-  background-color: rgba(0, 0, 0, 0.2);
-  border: 1px solid transparent;
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius);
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
   cursor: pointer;
+  overflow: hidden;
 }
 
 .item-slot:hover {
   border-color: var(--primary);
-  background-color: rgba(74, 144, 226, 0.1);
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(20, 20, 20, 0.3);
+  background-color: rgba(37, 37, 37, 0.1);
+}
+
+.item-slot:hover .item-slot-img img {
+  transform: scale(1.1);
+}
+
+.item-slot-img img {
+  max-width: 70%;
+  max-height: 70%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+  transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .item-slot-content {
