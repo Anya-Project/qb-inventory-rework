@@ -91,36 +91,35 @@ end
 exports('LoadInventory', LoadInventory)
 
 function SaveInventory(source, offline)
-    CreateThread(function()
-        local PlayerData
-        if offline then
-            PlayerData = source
-        else
-            local Player = QBCore.Functions.GetPlayer(source)
-            if not Player then return end
-            PlayerData = Player.PlayerData
-        end
+    print(('[qb-inventory] Save Inventory data for: %s (%s)'):format(GetPlayerName(source), source))
+    local PlayerData
+    if offline then
+        PlayerData = source
+    else
+        local Player = QBCore.Functions.GetPlayer(source)
+        if not Player then return end
+        PlayerData = Player.PlayerData
+    end
 
-        local items = PlayerData.items
-        local ItemsJson = {}
+    local items = PlayerData.items
+    local ItemsJson = {}
 
-        if items and next(items) then
-            for slot, item in pairs(items) do
-                if item then
-                    ItemsJson[#ItemsJson + 1] = {
-                        name = item.name,
-                        amount = item.amount,
-                        info = item.info,
-                        type = item.type,
-                        slot = slot,
-                    }
-                end
+    if items and next(items) then
+        for slot, item in pairs(items) do
+            if item then
+                ItemsJson[#ItemsJson + 1] = {
+                    name = item.name,
+                    amount = item.amount,
+                    info = item.info,
+                    type = item.type,
+                    slot = slot,
+                }
             end
-            MySQL.prepare.await('UPDATE players SET inventory = ? WHERE citizenid = ?', { json.encode(ItemsJson), PlayerData.citizenid })
-        else
-            MySQL.prepare.await('UPDATE players SET inventory = ? WHERE citizenid = ?', { '[]', PlayerData.citizenid })
         end
-    end)
+        MySQL.prepare.await('UPDATE players SET inventory = ? WHERE citizenid = ?', { json.encode(ItemsJson), PlayerData.citizenid })
+    else
+        MySQL.prepare.await('UPDATE players SET inventory = ? WHERE citizenid = ?', { '[]', PlayerData.citizenid })
+    end
 end
 
 function AddCash(source, amount, reason)
@@ -187,6 +186,7 @@ function SetInventory(identifier, items, reason)
 
     if player then
         player.Functions.SetPlayerData('items', items)
+        ScheduleSave(identifier)
         if not player.Offline then
             local logMessage = string.format('**%s (citizenid: %s | id: %s)** items set: %s', GetPlayerName(identifier), player.PlayerData.citizenid, identifier, json.encode(items))
             TriggerEvent('qb-log:server:CreateLog', 'playerinventory', 'SetInventory', 'blue', logMessage)
@@ -495,6 +495,7 @@ function ClearInventory(source, filterItems)
     end
 
     player.Functions.SetPlayerData('items', savedItemData)
+    ScheduleSave(source)
     if not player.Offline then
         local logMessage = string.format('**%s (citizenid: %s | id: %s)** inventory cleared (cash preserved)', GetPlayerName(source), player.PlayerData.citizenid, source)
         TriggerEvent('qb-log-new:server:CreateLog', 'playerinventory', 'ClearInventory', 'red', logMessage)
@@ -837,7 +838,11 @@ function AddItem(identifier, item, amount, slot, info, reason)
         end
     end
 
-    if player then player.Functions.SetPlayerData('items', inventory) end
+    if player then 
+    player.Functions.SetPlayerData('items', inventory)
+    ScheduleSave(identifier)
+    end
+
     local invName = player and GetPlayerName(identifier) .. ' (' .. identifier .. ')' or identifier
     local addReason = reason or 'No reason specified'
     local resourceName = GetInvokingResource() or 'qb-inventory'
@@ -946,6 +951,7 @@ function RemoveItem(identifier, item, amount, slot, reason)
 
     if player then
         player.Functions.SetPlayerData('items', inventory)
+        ScheduleSave(identifier)
     else
         otherInventory.items = inventory
     end

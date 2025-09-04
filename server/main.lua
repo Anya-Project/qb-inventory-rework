@@ -2,6 +2,8 @@ QBCore = exports['qb-core']:GetCoreObject()
 Inventories = {}
 Drops = {}
 RegisteredShops = {}
+local saveCounters = {}
+local SAVE_DELAY = 2500 -- save timer in milliseconds
 
 Config.Debug = false -- Set to false to disable console logs
 
@@ -44,14 +46,26 @@ CreateThread(function()
 end)
 
 AddEventHandler('QBCore:Server:PlayerUnloaded', function(source)
+    source = tonumber(source)
+    if not source then return end
+    if saveCounters[source] then
+        saveCounters[source] = nil
+    end
+    SaveInventory(source)
+
     for _, inv in pairs(Inventories) do
         if inv.isOpen == source then
             inv.isOpen = false
         end
     end
-end)    
+end)
 
 AddEventHandler('txAdmin:events:serverShuttingDown', function()
+    local players = QBCore.Functions.GetPlayers()
+    for _, playerId in pairs(players) do
+        SaveInventory(playerId)
+        print(('Menyimpan inventaris untuk pemain dengan ID: %s'):format(playerId))
+    end
     for inventory, data in pairs(Inventories) do
         if data.isOpen then
             MySQL.prepare('INSERT INTO inventories (identifier, items) VALUES (?, ?) ON DUPLICATE KEY UPDATE items = ?', { inventory, json.encode(data.items), json.encode(data.items) })
@@ -602,7 +616,7 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory,
         print(('[INV_DEBUG_SERVER] > fromSlot: %s | toSlot: %s'):format(tostring(fromSlot), tostring(toSlot)))
         print(('[INV_DEBUG_SERVER] > fromAmount (original amount): %s | toAmount (amount moved): %s'):format(tostring(fromAmount), tostring(toAmount)))
     end
-    
+
     local function table_copy(orig)
         local orig_type = type(orig)
         local copy
@@ -611,7 +625,7 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory,
             for orig_key, orig_value in pairs(orig) do
                 copy[orig_key] = orig_value
             end
-        else 
+        else
             copy = orig
         end
         return copy
@@ -627,11 +641,11 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory,
     fromSlot, toSlot, fromAmount, toAmount = tonumber(fromSlot), tonumber(toSlot), tonumber(fromAmount), tonumber(toAmount)
     local fromItem = getItem(fromInventory, src, fromSlot)
     local toItem = getItem(toInventory, src, toSlot)
-    if not fromItem then 
+    if not fromItem then
         if Config.Debug then print('[INV_DEBUG_SERVER] ERROR: fromItem is nil. Aborting.') end
-        return 
+        return
     end
-    
+
     if Config.Debug then
         print('[INV_DEBUG_SERVER] > fromItem: ' .. json.encode(fromItem))
         print('[INV_DEBUG_SERVER] > toItem: ' .. json.encode(toItem))
@@ -668,7 +682,7 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory,
                 if inventoryItems[fromSlot].amount <= 0 then
                     inventoryItems[fromSlot] = nil
                 end
-            else 
+            else
                 if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Swap') end
                 inventoryItems[fromSlot], inventoryItems[toSlot] = inventoryItems[toSlot], inventoryItems[fromSlot]
                 inventoryItems[fromSlot].slot = fromSlot
@@ -680,8 +694,9 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory,
             inventoryItems[fromSlot] = nil
             inventoryItems[toSlot].slot = toSlot
         end
-        if TargetPlayer then 
-            TargetPlayer.Functions.SetPlayerData('items', inventoryItems) 
+        if TargetPlayer then
+            TargetPlayer.Functions.SetPlayerData('items', inventoryItems)
+            ScheduleSave(inventoryId) 
         elseif isDrop then
             Drops[inventoryId].items = inventoryItems
         elseif isStash then
@@ -720,3 +735,18 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory,
         end
     end
 end)
+
+function ScheduleSave(source)
+    source = tonumber(source)
+    if not source then return end
+    saveCounters[source] = (saveCounters[source] or 0) + 1
+    local currentVersion = saveCounters[source]
+
+    SetTimeout(SAVE_DELAY, function()
+        if saveCounters[source] == currentVersion then
+            if QBCore.Functions.GetPlayer(source) then
+                SaveInventory(source)
+            end
+        end
+    end)
+end
