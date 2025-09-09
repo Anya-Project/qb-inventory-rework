@@ -1,6 +1,8 @@
 Config = {
     UseTarget = GetConvar('UseTarget', 'false') == 'true',
 
+    CashAsItem = true,
+
     MaxWeight = 120000,
     MaxSlots = 48,
 

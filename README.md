@@ -72,14 +72,15 @@ Open `qb-core/server/player.lua` and find the following functions:
 Delete all four of these functions entirely and replace them with the code block below:
 
 ```lua
-------------------------------------------- EDITED BY AP_CODE --------------------------------------------------
-function self.Functions.AddMoney(moneytype, amount, reason)
+--------------------------EDITED BY APCODE START--------------------------
+    function self.Functions.AddMoney(moneytype, amount, reason)
     reason = reason or 'unknown'
     moneytype = moneytype:lower()
     amount = tonumber(amount)
     if amount < 0 then return end
     if not self.PlayerData.money[moneytype] then return false end
-    if moneytype == 'cash' then
+
+    if moneytype == 'cash' and GetResourceState('qb-inventory') ~= 'missing' and exports['qb-inventory']:IsCashAsItem() then
         if exports['qb-inventory']:AddCash(self.PlayerData.source, amount) then
             if not self.Offline then
                 if amount > 100000 then
@@ -95,6 +96,7 @@ function self.Functions.AddMoney(moneytype, amount, reason)
             return false
         end
     end
+
     self.PlayerData.money[moneytype] = self.PlayerData.money[moneytype] + amount
     if not self.Offline then
         self.Functions.UpdatePlayerData()
@@ -109,15 +111,15 @@ function self.Functions.AddMoney(moneytype, amount, reason)
     end
     return true
 end
-```
-```lua
-function self.Functions.RemoveMoney(moneytype, amount, reason)
+
+    function self.Functions.RemoveMoney(moneytype, amount, reason)
     reason = reason or 'unknown'
     moneytype = moneytype:lower()
     amount = tonumber(amount)
     if amount < 0 then return end
     if not self.PlayerData.money[moneytype] then return false end
-    if moneytype == 'cash' then
+
+    if moneytype == 'cash' and GetResourceState('qb-inventory') ~= 'missing' and exports['qb-inventory']:IsCashAsItem() then
         if exports['qb-inventory']:RemoveCash(self.PlayerData.source, amount, reason) then
             if not self.Offline then
                 if amount > 100000 then
@@ -133,6 +135,7 @@ function self.Functions.RemoveMoney(moneytype, amount, reason)
             return false
         end
     end
+
     for _, mtype in pairs(QBCore.Config.Money.DontAllowMinus) do
         if mtype == moneytype then
             if (self.PlayerData.money[moneytype] - amount) < 0 then
@@ -160,15 +163,15 @@ function self.Functions.RemoveMoney(moneytype, amount, reason)
     end
     return true
 end
-```
-```lua
-function self.Functions.SetMoney(moneytype, amount, reason)
+
+    function self.Functions.SetMoney(moneytype, amount, reason)
     reason = reason or 'unknown'
     moneytype = moneytype:lower()
     amount = tonumber(amount)
     if amount < 0 then return false end
     if not self.PlayerData.money[moneytype] then return false end
-    if moneytype == 'cash' then
+
+    if moneytype == 'cash' and GetResourceState('qb-inventory') ~= 'missing' and exports['qb-inventory']:IsCashAsItem() then
         local currentCash = exports['qb-inventory']:GetItemCount(self.PlayerData.source, 'cash') or 0
         local difference = amount - currentCash
         local success = false
@@ -191,6 +194,7 @@ function self.Functions.SetMoney(moneytype, amount, reason)
         end
         return success
     end
+
     local difference = amount - self.PlayerData.money[moneytype]
     self.PlayerData.money[moneytype] = amount
     if not self.Offline then
@@ -202,25 +206,22 @@ function self.Functions.SetMoney(moneytype, amount, reason)
     end
     return true
 end
-```
-```lua
-function self.Functions.GetMoney(moneytype)
+
+    function self.Functions.GetMoney(moneytype)
     if not moneytype then return false end
     moneytype = moneytype:lower()
-    if moneytype == 'cash' then
-        if GetResourceState('qb-inventory') ~= 'missing' then
-            local cashCount = exports['qb-inventory']:GetItemCount(self.PlayerData.source, 'cash') or 0
-            if self.PlayerData.money.cash ~= cashCount then
-                self.PlayerData.money.cash = cashCount
-            end
-            return cashCount
-        else
-            return self.PlayerData.money[moneytype]
+
+    if moneytype == 'cash' and GetResourceState('qb-inventory') ~= 'missing' and exports['qb-inventory']:IsCashAsItem() then
+        local cashCount = exports['qb-inventory']:GetItemCount(self.PlayerData.source, 'cash') or 0
+        if self.PlayerData.money.cash ~= cashCount then
+            self.PlayerData.money.cash = cashCount
         end
+        return cashCount
     end
+    
     return self.PlayerData.money[moneytype]
 end
-------------------------------------------- EDITED BY AP_CODE --------------------------------------------------
+-----------------------------EDITED BY APCODE END--------------------------
 ```
 
 
@@ -229,6 +230,7 @@ end
 Still in `qb-core/server/player.lua`, find the function `QBCore.Player.CheckPlayerData`. Delete this function and replace it with the code block below. This change ensures the player's inventory is loaded correctly when they join the server.
 
 ```lua
+--------------------------EDITED BY APCODE START--------------------------
 function QBCore.Player.CheckPlayerData(source, PlayerData)
     PlayerData = PlayerData or {}
     local Offline = not source
@@ -274,22 +276,23 @@ function QBCore.Player.CheckPlayerData(source, PlayerData)
         PlayerData.gang = nil
     end
     applyDefaults(PlayerData, QBCore.Config.Player.PlayerDefaults)
-    ------------------------------------------- EDITED BY AP_CODE --------------------------------------------------
     if GetResourceState('qb-inventory') ~= 'missing' then
         PlayerData.items = exports['qb-inventory']:LoadInventory(PlayerData.source, PlayerData.citizenid)
-    end
-    if PlayerData.items then
-        local cashInInventory = 0
-        for _, item in pairs(PlayerData.items) do
-            if item and item.name == 'cash' then
-                cashInInventory = cashInInventory + item.amount
+        if exports['qb-inventory']:IsCashAsItem() then
+            if PlayerData.items then
+                local cashInInventory = 0
+                for _, item in pairs(PlayerData.items) do
+                    if item and item.name == 'cash' then
+                        cashInInventory = cashInInventory + item.amount
+                    end
+                end
+                PlayerData.money.cash = cashInInventory
             end
         end
-        PlayerData.money.cash = cashInInventory
     end
-    ------------------------------------------- EDITED BY AP_CODE --------------------------------------------------
     return QBCore.Player.CreatePlayer(PlayerData, Offline)
 end
+--------------------------EDITED BY APCODE END--------------------------
 ```
 
 ### Step 3: Add Cash Item to `qb-core/shared/items.lua`

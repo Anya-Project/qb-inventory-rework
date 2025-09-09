@@ -3,7 +3,7 @@ game 'gta5'
 lua54 'yes'
 author 'kakarot'
 description 'QB Inventory Rework by APCode'
-version '2.3.0'
+version '2.4.0'
 
 shared_scripts {
     '@qb-core/shared/locale.lua',

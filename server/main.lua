@@ -7,6 +7,10 @@ local SAVE_DELAY = 2500 -- save timer in milliseconds
 
 Config.Debug = false -- Set to false to disable console logs
 
+exports('IsCashAsItem', function()
+    return Config.CashAsItem
+end)
+
 local function CopyTable(tbl)
     if type(tbl) ~= 'table' then return tbl end
     local newTbl = {}
@@ -108,17 +112,19 @@ AddEventHandler('QBCore:Server:PlayerLoaded', function(Player)
         SetInventory(Player.PlayerData.source, items)
     end)
 
-    local playerItems = Player.PlayerData.items
-    if playerItems then
-        local cashInInventory = 0
-        for _, item in pairs(playerItems) do
-            if item and item.name == 'cash' then
-                cashInInventory = cashInInventory + item.amount
+    if Config.CashAsItem then
+        local playerItems = Player.PlayerData.items
+        if playerItems then
+            local cashInInventory = 0
+            for _, item in pairs(playerItems) do
+                if item and item.name == 'cash' then
+                    cashInInventory = cashInInventory + item.amount
+                end
             end
-        end
-        if Player.PlayerData.money.cash ~= cashInInventory then
-            print(('[qb-inventory] Player %s (%s) had desynced cash. Correcting from %s to %s.'):format(Player.PlayerData.name, Player.PlayerData.citizenid, Player.PlayerData.money.cash, cashInInventory))
-            Player.Functions.SetMoney('cash', cashInInventory, 'login_sync')
+            if Player.PlayerData.money.cash ~= cashInInventory then
+                print(('[qb-inventory] Player %s (%s) had desynced cash. Correcting from %s to %s.'):format(Player.PlayerData.name, Player.PlayerData.citizenid, Player.PlayerData.money.cash, cashInInventory))
+                Player.Functions.SetMoney('cash', cashInInventory, 'login_sync')
+            end
         end
     end
 end)
@@ -481,30 +487,36 @@ QBCore.Functions.CreateCallback('qb-inventory:server:attemptPurchase', function(
     end
 
     local price = shopInfo.items[itemInfo.slot].price * amount
-     
-    if price == 0 then
-        
-        if AddItem(source, itemInfo.name, amount, nil, itemInfo.info, 'shop-purchase-free') then
-            TriggerEvent('qb-shops:server:UpdateShopItems', shop, itemInfo, amount)
-            TriggerClientEvent('qb-inventory:client:updateInventory', source)
-            cb(true)
-        else
-            
-            TriggerClientEvent('QBCore:Notify', source, 'Transaction failed, could not add item.', 'error')
-            cb(false)
-        end
-        return 
-    end
-    
+    local canPay = false
 
-    if HasItem(source, 'cash', price) then
-        if RemoveItem(source, 'cash', price, nil, 'shop-purchase') then
-            AddItem(source, itemInfo.name, amount, nil, itemInfo.info, 'shop-purchase')
+    if price == 0 then
+        canPay = true
+    elseif Config.CashAsItem then
+        if HasItem(source, 'cash', price) then
+            if RemoveItem(source, 'cash', price, nil, 'shop-purchase') then
+                canPay = true
+            end
+        end
+    else
+        if Player.Functions.RemoveMoney('cash', price, 'shop-purchase') then
+            canPay = true
+        end
+    end
+
+    if canPay then
+        if AddItem(source, itemInfo.name, amount, nil, itemInfo.info, 'shop-purchase') then
             TriggerEvent('qb-shops:server:UpdateShopItems', shop, itemInfo, amount)
             TriggerClientEvent('qb-inventory:client:updateInventory', source)
             cb(true)
         else
-            TriggerClientEvent('QBCore:Notify', source, 'Transaction failed, You do not have enough cash.', 'error')
+            if price > 0 then
+                if Config.CashAsItem then
+                    AddItem(source, 'cash', price, nil, {}, 'shop-purchase-failed-refund')
+                else
+                    Player.Functions.AddMoney('cash', price, 'shop-purchase-failed-refund')
+                end
+            end
+            TriggerClientEvent('QBCore:Notify', source, 'Transaction failed, could not add item.', 'error')
             cb(false)
         end
     else
@@ -657,9 +669,12 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory,
         return
     end
     local fromItemInfo = QBCore.Shared.Items[fromItem.name]
+    local fromId = getIdentifier(fromInventory, src)
+    local toId = getIdentifier(toInventory, src)
+
     if fromInventory == toInventory then
         if Config.Debug then print('[INV_DEBUG_SERVER] > Action: Same Inventory Move') end
-        local inventoryId = getIdentifier(fromInventory, src)
+        local inventoryId = fromId
         local TargetPlayer = QBCore.Functions.GetPlayer(inventoryId)
         local isDrop = Drops[inventoryId]
         local isStash = Inventories[inventoryId]
@@ -683,9 +698,12 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory,
                     inventoryItems[fromSlot] = nil
                 end
             else
-                if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Swap') end
-                inventoryItems[fromSlot], inventoryItems[toSlot] = inventoryItems[toSlot], inventoryItems[fromSlot]
+                if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Swap (Safe Method)') end
+                local tempFromItem = table_copy(inventoryItems[fromSlot])
+                local tempToItem = table_copy(inventoryItems[toSlot])
+                inventoryItems[fromSlot] = tempToItem
                 inventoryItems[fromSlot].slot = fromSlot
+                inventoryItems[toSlot] = tempFromItem
                 inventoryItems[toSlot].slot = toSlot
             end
         else
@@ -696,41 +714,38 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory,
         end
         if TargetPlayer then
             TargetPlayer.Functions.SetPlayerData('items', inventoryItems)
-            ScheduleSave(inventoryId) 
+             ScheduleSave(inventoryId)
         elseif isDrop then
             Drops[inventoryId].items = inventoryItems
         elseif isStash then
             Inventories[inventoryId].items = inventoryItems
         end
-        return
-    end
-
-    if Config.Debug then print('[INV_DEBUG_SERVER] > Action: Different Inventory Move') end
-    local fromId = getIdentifier(fromInventory, src)
-    local toId = getIdentifier(toInventory, src)
-    local canStackAcross = toItem and fromItem.name == toItem.name and not fromItemInfo.unique and (not fromItem.info.expiryDate or (fromItem.info.expiryDate and toItem.info.expiryDate and fromItem.info.expiryDate == toItem.info.expiryDate))
-
-    if canStackAcross then
-        if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: canStackAcross') end
-        if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'stacked item') then
-            AddItem(toId, toItem.name, toAmount, toSlot, toItem.info, 'stacked item')
-        end
-    elseif not toItem and toAmount < serverFromAmount then
-        if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Split across inventories') end
-        if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'split item') then
-            AddItem(toId, fromItem.name, toAmount, toSlot, fromItem.info, 'split item')
-        end
     else
-        if toItem then
-            if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Swap across inventories') end
-            if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'swapped item') and RemoveItem(toId, toItem.name, toItem.amount, toSlot, 'swapped item') then
-                AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'swapped item')
-                AddItem(fromId, toItem.name, toItem.amount, fromSlot, toItem.info, 'swapped item')
+        if Config.Debug then print('[INV_DEBUG_SERVER] > Action: Different Inventory Move') end
+        local canStackAcross = toItem and fromItem.name == toItem.name and not fromItemInfo.unique and (not fromItem.info.expiryDate or (fromItem.info.expiryDate and toItem.info.expiryDate and fromItem.info.expiryDate == toItem.info.expiryDate))
+
+        if canStackAcross then
+            if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: canStackAcross') end
+            if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'stacked item') then
+                AddItem(toId, toItem.name, toAmount, toSlot, toItem.info, 'stacked item')
+            end
+        elseif not toItem and toAmount < serverFromAmount then
+            if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Split across inventories') end
+            if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'split item') then
+                AddItem(toId, fromItem.name, toAmount, toSlot, fromItem.info, 'split item')
             end
         else
-            if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Move to empty slot across inventories') end
-            if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'moved item') then
-                AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'moved item')
+            if toItem then
+                if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Swap across inventories') end
+                if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'swapped item') and RemoveItem(toId, toItem.name, toItem.amount, toSlot, 'swapped item') then
+                    AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'swapped item')
+                    AddItem(fromId, toItem.name, toItem.amount, fromSlot, toItem.info, 'swapped item')
+                end
+            else
+                if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Move to empty slot across inventories') end
+                if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'moved item') then
+                    AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'moved item')
+                end
             end
         end
     end
@@ -743,10 +758,8 @@ function ScheduleSave(source)
     local currentVersion = saveCounters[source]
 
     SetTimeout(SAVE_DELAY, function()
-        if saveCounters[source] == currentVersion then
-            if QBCore.Functions.GetPlayer(source) then
-                SaveInventory(source)
-            end
+        if saveCounters[source] == currentVersion and QBCore.Functions.GetPlayer(source) then
+            SaveInventory(source)
         end
     end)
 end
