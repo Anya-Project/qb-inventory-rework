@@ -202,11 +202,14 @@ function SetItemData(source, itemName, key, val, slot)
     Player.Functions.SetPlayerData('items', Player.PlayerData.items)
     return true
 end
+
 exports('SetItemData', SetItemData)
 
 function UseItem(itemName, ...)
     local itemData = QBCore.Functions.CanUseItem(itemName)
-    if type(itemData) == 'table' and itemData.func then
+    if type(itemData) == 'function' then
+        itemData(...)
+    elseif type(itemData) == 'table' and itemData.func then
         itemData.func(...)
     end
 end
