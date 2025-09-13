@@ -7,6 +7,19 @@ local SAVE_DELAY = 2500 -- save timer in milliseconds
 
 Config.Debug = false -- Set to false to disable console logs
 
+local function SanitizeInventory(items)
+    if not items or type(items) ~= 'table' then return {} end
+    local sanitizedItems = {}
+    for k, v in pairs(items) do
+        local slot = tonumber(k)
+        if slot and v and type(v) == 'table' then
+            v.slot = slot
+            sanitizedItems[slot] = v
+        end
+    end
+    return sanitizedItems
+end
+
 exports('IsCashAsItem', function()
     return Config.CashAsItem
 end)
@@ -27,11 +40,11 @@ CreateThread(function()
                 local inventory = result[i]
                 local cacheKey = inventory.identifier
                 Inventories[cacheKey] = {
-                    items = json.decode(inventory.items) or {},
+                    items = SanitizeInventory(json.decode(inventory.items)),
                     isOpen = false
                 }
             end
-            print(#result .. ' inventories successfully loaded')
+         --   print(#result .. ' inventories successfully loaded')
         end
     end)
 end)
@@ -68,7 +81,6 @@ AddEventHandler('txAdmin:events:serverShuttingDown', function()
     local players = QBCore.Functions.GetPlayers()
     for _, playerId in pairs(players) do
         SaveInventory(playerId)
-        print(('Menyimpan inventaris untuk pemain dengan ID: %s'):format(playerId))
     end
     for inventory, data in pairs(Inventories) do
         if data.isOpen then
@@ -651,8 +663,10 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory,
     if not Player then return end
 
     fromSlot, toSlot, fromAmount, toAmount = tonumber(fromSlot), tonumber(toSlot), tonumber(fromAmount), tonumber(toAmount)
+
     local fromItem = getItem(fromInventory, src, fromSlot)
     local toItem = getItem(toInventory, src, toSlot)
+
     if not fromItem then
         if Config.Debug then print('[INV_DEBUG_SERVER] ERROR: fromItem is nil. Aborting.') end
         return

@@ -560,22 +560,34 @@ function OpenInventory(source, identifier, data)
     if Player(source).state.inv_busy then return end
     local QBPlayer = QBCore.Functions.GetPlayer(source)
     if not QBPlayer then return end
-
     if not identifier then
         Player(source).state.inv_busy = true
         TriggerClientEvent('qb-inventory:client:openInventory', source, QBPlayer.PlayerData.items)
         return
     end
-
     if type(identifier) ~= 'string' then print('Inventory tried to open an invalid identifier') return end
-
     local inventory = Inventories[identifier]
-    if inventory and inventory.isOpen then
+    if not inventory then
+        local result = MySQL.prepare.await('SELECT * FROM inventories WHERE identifier = ?', { identifier })
+        if result and result[1] then
+         --   print(('Loaded inventory [%s] from database.'):format(identifier))
+            Inventories[identifier] = {
+                items = SanitizeInventory(json.decode(result[1].items)),
+                isOpen = false,
+                label = (data and data.label) or identifier,
+                maxweight = (data and data.maxweight) or Config.StashSize.maxweight,
+                slots = (data and data.slots) or Config.StashSize.slots
+            }
+            inventory = Inventories[identifier]
+        else
+         --   print(('Initializing new inventory for [%s].'):format(identifier))
+            inventory = InitializeInventory(identifier, data)
+        end
+    end
+    if inventory and inventory.isOpen and inventory.isOpen ~= source then
         TriggerClientEvent('QBCore:Notify', source, 'This inventory is currently in use', 'error')
         return
     end
-
-    if not inventory then inventory = InitializeInventory(identifier, data) end
     inventory.maxweight = (data and data.maxweight) or (inventory and inventory.maxweight) or Config.StashSize.maxweight
     inventory.slots = (data and data.slots) or (inventory and inventory.slots) or Config.StashSize.slots
     inventory.label = (data and data.label) or (inventory and inventory.label) or identifier
@@ -729,6 +741,11 @@ end
 exports('AddItem', AddItem)
 
 function RemoveItem(identifier, item, amount, slot, reason)
+    -- ==================== REMOVEITEM DEBUG START ====================
+    --print('--- REMOVEITEM DEBUG: Function Called ---')
+    --print(('Attempting to remove %s of "%s" from inventory [%s], slot [%s]'):format(tostring(amount), tostring(item), tostring(identifier), tostring(slot)))
+    -- ================================================================
+
     local player = QBCore.Functions.GetPlayer(identifier)
     local inventory, inventoryType
 
@@ -739,34 +756,57 @@ function RemoveItem(identifier, item, amount, slot, reason)
     elseif Drops[identifier] then
         inventory, inventoryType = Drops[identifier].items, 'drop'
     else
-        print('RemoveItem: Inventory not found for ' .. tostring(identifier))
+        print('REMOVEITEM DEBUG: FAILED - Inventory not found for ' .. tostring(identifier))
         return false
     end
 
     amount = tonumber(amount)
-    if not amount or amount <= 0 then return false end
+    if not amount or amount <= 0 then
+        print('REMOVEITEM DEBUG: FAILED - Invalid amount: ' .. tostring(amount))
+        return false
+    end
     local itemName = item:lower()
     local itemInfo = QBCore.Shared.Items[itemName]
-    if not itemInfo then return false end
+    if not itemInfo then
+        print('REMOVEITEM DEBUG: FAILED - Item info not found for ' .. itemName)
+        return false
+    end
     local currentAmount = 0
     for _, itemData in pairs(inventory) do
         if itemData and itemData.name == itemName then
             currentAmount = currentAmount + itemData.amount
         end
     end
-    if currentAmount < amount then return false end
+    if currentAmount < amount then
+        print(('REMOVEITEM DEBUG: FAILED - Not enough total items. Have: %s, Need: %s'):format(currentAmount, amount))
+        return false
+    end
 
     local amountToRemove = amount
 
     if slot then
         local itemInSlot = inventory[slot]
-        if itemInSlot and itemInSlot.name == itemName and itemInSlot.amount >= amountToRemove then
-            itemInSlot.amount = itemInSlot.amount - amountToRemove
-            if itemInSlot.amount <= 0 then inventory[slot] = nil end
-            amountToRemove = 0
-        else
+
+        if not itemInSlot then
+            print('REMOVEITEM DEBUG: FAILED - No item found in slot ' .. slot)
             return false
         end
+
+        if itemInSlot.name ~= itemName then
+            print(('REMOVEITEM DEBUG: FAILED - Item name mismatch. Expected: "%s", Found: "%s"'):format(itemName, itemInSlot.name))
+            return false
+        end
+        
+        if itemInSlot.amount < amountToRemove then
+            print(('REMOVEITEM DEBUG: FAILED - Not enough amount in slot. Have: %s, Need: %s'):format(itemInSlot.amount, amountToRemove))
+            return false
+        end
+
+        itemInSlot.amount = itemInSlot.amount - amountToRemove
+        if itemInSlot.amount <= 0 then 
+            inventory[slot] = nil
+        end
+        amountToRemove = 0
     else
         local slots = {}
         for k in pairs(inventory) do table.insert(slots, k) end
@@ -787,7 +827,11 @@ function RemoveItem(identifier, item, amount, slot, reason)
         end
     end
 
-    if amountToRemove > 0 then return false end
+    if amountToRemove > 0 then
+        print('REMOVEITEM DEBUG: FAILED - Could not remove the full amount required.')
+        return false
+    end
+    
     if inventoryType == 'player' then
         player.Functions.SetPlayerData('items', inventory)
         ScheduleSave(identifier)
@@ -806,7 +850,6 @@ function RemoveItem(identifier, item, amount, slot, reason)
     local removeReason = reason or 'No reason specified'
     local resourceName = GetInvokingResource() or 'qb-inventory'
     TriggerEvent('qb-log:server:CreateLog', 'playerinventory', 'Item Removed', 'red', '**Inventory:** ' .. invName .. ' | **Item:** ' .. item .. ' | **Amount:** ' .. amount .. ' | **Reason:** ' .. removeReason .. ' | **Resource:** ' .. resourceName)
-    
     return true
 end
 exports('RemoveItem', RemoveItem)

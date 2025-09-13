@@ -597,7 +597,7 @@ const InventoryContainer = Vue.createApp({
               this.currentlyDraggingSlot,
               targetSlot,
               sourceItem.amount,
-              targetItem.amount
+              sourceItem.amount
             );
 
             this.clearDragData();
@@ -641,7 +641,7 @@ const InventoryContainer = Vue.createApp({
               this.currentlyDraggingSlot,
               targetSlot,
               sourceItem.amount,
-              targetItem.amount
+              sourceItem.amount 
             );
           }
         } else {
