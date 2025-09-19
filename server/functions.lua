@@ -1,3 +1,7 @@
+---------------------------
+-- server/functions.lua
+---------------------------
+
 local function InitializeInventory(inventoryId, data)
     Inventories[inventoryId] = {
         items = {},

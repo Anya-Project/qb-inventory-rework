@@ -1,3 +1,7 @@
+---------------------------
+-- server/commands.lua
+---------------------------
+
 QBCore.Commands.Add('giveitem', 'Give An Item (Admin Only)', { { name = 'id', help = 'Player ID' }, { name = 'item', help = 'Name of the item (not a label)' }, { name = 'amount', help = 'Amount of items' } }, false, function(source, args)
     local id = tonumber(args[1])
     local player = QBCore.Functions.GetPlayer(id)

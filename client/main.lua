@@ -1,3 +1,5 @@
+--client/main.lua
+
 QBCore = exports['qb-core']:GetCoreObject()
 PlayerData = nil
 local hotbarShown = false

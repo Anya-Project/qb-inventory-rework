@@ -1,4 +1,6 @@
---server/compat.lua
+---------------------------
+-- server/compat.lua
+---------------------------
 
 QBCore = exports['qb-core']:GetCoreObject()
 
@@ -8,16 +10,26 @@ RegisterNetEvent('inventory:server:OpenInventory', function(name, data_or_target
     if name == 'otherplayer' or name == 'player' then
         local targetId = tonumber(data_or_targetid)
         if not targetId then return end
-     --   print(('[QB-INVENTORY-COMPAT] Accepting legacy event "OpenInventory" for player #%s. Opening via export OpenInventoryById...'):format(targetId))
         exports['qb-inventory']:OpenInventoryById(src, targetId)
     else
-        local inventoryData = {
-            label = name,
-            maxweight = data_or_targetid or Config.StashSize.maxweight,
-            slots = slots or Config.StashSize.slots
-        }
-   --     print(('[QB-INVENTORY-COMPAT] Accepting legacy event "OpenInventory" for stash: %s. Opening via export OpenInventory...'):format(name))
-        exports['qb-inventory']:OpenInventory(src, name, inventoryData)
+        local identifier
+        local inventoryData
+        if type(slots) == 'table' then
+            identifier = data_or_targetid
+            inventoryData = slots
+            inventoryData.label = inventoryData.label or identifier
+        else
+            identifier = name
+            inventoryData = {
+                label = name,
+                maxweight = data_or_targetid or Config.StashSize.maxweight,
+                slots = slots or Config.StashSize.slots
+            }
+        end
+        if identifier then
+            -- print(('[QB-INVENTORY-COMPAT] Accepting legacy event "OpenInventory" for stash: %s. Opening via export OpenInventory...'):format(identifier))
+            exports['qb-inventory']:OpenInventory(src, identifier, inventoryData)
+        end
     end
 end)
 

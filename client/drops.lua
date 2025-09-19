@@ -1,3 +1,5 @@
+-- client/drops.lua
+
 HoldingDrop = false
 local bagObject = nil
 local heldDrop = nil

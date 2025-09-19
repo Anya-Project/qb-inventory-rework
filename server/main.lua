@@ -1,3 +1,7 @@
+---------------------------
+-- server/main.lua
+---------------------------
+
 QBCore = exports['qb-core']:GetCoreObject()
 Inventories = {}
 Drops = {}
