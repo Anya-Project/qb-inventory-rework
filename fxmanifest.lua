@@ -1,6 +1,7 @@
 fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
+
 author 'kakarot'
 description 'QB Inventory Rework by APCode'
 version '2.4.0'
@@ -35,4 +36,9 @@ files {
     'html/images/*.png',
 }
 
+exports {
+    'HasItem'
+}
+
 dependency 'qb-weapons'
+dependency 'qb-core'
