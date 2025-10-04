@@ -1,4 +1,20 @@
 VehicleStorage = {
+
+    byModel = {
+        ['zentorno'] = { -- EXAMPLE
+            trunkSlots = 10,
+            trunkWeight = 50000,
+            gloveboxSlots = 10,
+            gloveboxWeight = 50000
+        },
+        ['tigon'] = {  -- EXAMPLE
+            trunkSlots = 10,
+            trunkWeight = 50000,
+            gloveboxSlots = 5,
+            gloveboxWeight = 2000
+        },
+    },
+
     default = {
         gloveboxSlots = 5,
         gloveboxWeight = 10000,
