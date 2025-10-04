@@ -430,7 +430,7 @@ QBCore.Functions.CreateCallback('qb-inventory:server:createDrop', function(sourc
                 coords = playerCoords,
                 maxweight = Config.DropSize.maxweight,
                 slots = Config.DropSize.slots,
-                isOpen = true
+                isOpen = false 
             }
             TriggerClientEvent('qb-inventory:client:setupDropTarget', -1, dropId)
         else
@@ -740,29 +740,56 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory,
         end
     else
         if Config.Debug then print('[INV_DEBUG_SERVER] > Action: Different Inventory Move') end
+        local function rollback(message)
+            print(('[qb-inventory] CRITICAL ERROR: %s. Rolling back transaction.'):format(message))
+            AddItem(fromId, fromItem.name, toAmount, fromSlot, fromItem.info, 'move_failed_rollback')
+        end
+
         local canStackAcross = toItem and fromItem.name == toItem.name and not fromItemInfo.unique and (not fromItem.info.expiryDate or (fromItem.info.expiryDate and toItem.info.expiryDate and fromItem.info.expiryDate == toItem.info.expiryDate))
 
         if canStackAcross then
             if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: canStackAcross') end
             if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'stacked item') then
-                AddItem(toId, toItem.name, toAmount, toSlot, toItem.info, 'stacked item')
+                if not AddItem(toId, toItem.name, toAmount, toSlot, toItem.info, 'stacked item') then
+                    rollback('AddItem failed when stacking across inventories')
+                end
             end
         elseif not toItem and toAmount < serverFromAmount then
             if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Split across inventories') end
-            if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'split item') then
-                AddItem(toId, fromItem.name, toAmount, toSlot, fromItem.info, 'split item')
+            local canAdd, reason = CanAddItem(toId, fromItem.name, toAmount)
+            if canAdd then
+                if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'split item') then
+                    if not AddItem(toId, fromItem.name, toAmount, toSlot, fromItem.info, 'split item') then
+                        rollback('AddItem failed when splitting across inventories')
+                    end
+                end
+            else
+                if Config.Debug then print(('[INV_DEBUG_SERVER] Move aborted: Cannot split item to target. Reason: %s'):format(reason)) end
             end
         else
             if toItem then
                 if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Swap across inventories') end
-                if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'swapped item') and RemoveItem(toId, toItem.name, toItem.amount, toSlot, 'swapped item') then
-                    AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'swapped item')
-                    AddItem(fromId, toItem.name, toItem.amount, fromSlot, toItem.info, 'swapped item')
+                local canAddTo = CanAddItem(toId, fromItem.name, serverFromAmount)
+                local canAddFrom = CanAddItem(fromId, toItem.name, toItem.amount)
+                if canAddTo and canAddFrom then
+                    if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'swapped item') and RemoveItem(toId, toItem.name, toItem.amount, toSlot, 'swapped item') then
+                        AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'swapped item')
+                        AddItem(fromId, toItem.name, toItem.amount, fromSlot, toItem.info, 'swapped item')
+                    end
+                else
+                    if Config.Debug then print('[INV_DEBUG_SERVER] Swap aborted: One or both inventories cannot hold the swapped item.') end
                 end
             else
                 if Config.Debug then print('[INV_DEBUG_SERVER] > Logic Path: Move to empty slot across inventories') end
-                if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'moved item') then
-                    AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'moved item')
+                local canAdd, reason = CanAddItem(toId, fromItem.name, serverFromAmount)
+                if canAdd then
+                    if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'moved item') then
+                        if not AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'moved item') then
+                            rollback('AddItem failed when moving to an empty slot')
+                        end
+                    end
+                else
+                    if Config.Debug then print(('[INV_DEBUG_SERVER] Move aborted: Cannot move item to target. Reason: %s'):format(reason)) end
                 end
             end
         end

@@ -746,15 +746,6 @@ const InventoryContainer = Vue.createApp({
 
           if (response.data && typeof response.data === "object") {
             const dropData = response.data;
-            const remainingAmount =
-              this.playerInventory[playerItemSlot].amount - amountToDrop;
-
-            if (remainingAmount <= 0) {
-              delete this.playerInventory[playerItemSlot];
-            } else {
-              this.playerInventory[playerItemSlot].amount = remainingAmount;
-            }
-
             this.showItemNotification({
               item: item,
               type: "remove",
