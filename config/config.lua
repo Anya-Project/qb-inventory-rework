@@ -1,3 +1,5 @@
+--config/config.lua
+
 Config = {
     UseTarget = GetConvar('UseTarget', 'false') == 'true',
 

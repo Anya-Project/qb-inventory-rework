@@ -2,15 +2,16 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
-author 'kakarot'
+author 'APCode'
 description 'QB Inventory Rework by APCode'
-version '2.4.1'
+version '2.4.2'
 
 shared_scripts {
     '@qb-core/shared/locale.lua',
     'locales/en.lua',
     'locales/*.lua',
-    'config/*.lua',
+    'config/config.lua',
+    'config/vehicles.lua'
 }
 
 client_scripts {
