@@ -361,3 +361,106 @@ end
 
 RegisterKeyMapping('openInv', Lang:t('inf_mapping.opn_inv'), 'keyboard', Config.Keybinds.Open)
 RegisterKeyMapping('toggleHotbar', Lang:t('inf_mapping.tog_slots'), 'keyboard', Config.Keybinds.Hotbar)
+
+-- =================================================================
+--                        PLAYER SEARCH FEATURE (ROB)
+-- =================================================================
+
+CreateThread(function()
+    while not exports['qb-target'] do Wait(100) end
+    
+    exports['qb-target']:AddTargetEntity(GetGamePool('CPed'), {
+        options = {
+            {
+                icon = 'fa-solid fa-person-circle-question',
+                label = 'Search Player',
+                action = function(entity)
+                    local targetServerId = GetPlayerServerId(NetworkGetPlayerIndexFromPed(entity))
+                    if targetServerId ~= -1 then
+                        QBCore.Functions.Progressbar('player_rob', 'SEARCHING PERSON...', 5000, false, true, {
+                            disableMovement = true,
+                            disableCarMovement = true,
+                            disableMouse = false,
+                            disableCombat = true,
+                        }, {
+                            animDict = 'random@shop_robbery',
+                            anim = 'robbery_action_b',
+                            flags = 16,
+                        }, {}, {}, function() -- onFinish
+                            StopAnimTask(PlayerPedId(), 'random@shop_robbery', 'robbery_action_b', 1.0)
+                            TriggerServerEvent('qb-inventory:server:robPlayer', targetServerId)
+                        end, function() -- onCancel
+                            StopAnimTask(PlayerPedId(), 'random@shop_robbery', 'robbery_action_b', 1.0)
+                            QBCore.Functions.Notify('Action canceled', 'error')
+                        end)
+                    end
+                end,
+                canInteract = function(entity)
+                    if not IsPedAPlayer(entity) then
+                        return false
+                    end
+                    local targetServerId = GetPlayerServerId(NetworkGetPlayerIndexFromPed(entity))
+                    if targetServerId == GetPlayerServerId(PlayerId()) then
+                        return false
+                    end
+                    local isDead = IsPedDeadOrDying(entity, 1)
+                    local isHandsUp = IsEntityPlayingAnim(entity, 'missminuteman_1ig_2', 'handsup_base', 3)
+                    
+                    return isDead or isHandsUp
+                end,
+            }
+        },
+        distance = 2.0
+    })
+end)
+
+RegisterNetEvent('qb-inventory:client:beingRobbed', function()
+    local playerPed = PlayerPedId()
+    local duration = 5500
+    local timer = 0
+    
+    local animDict = 'missminuteman_1ig_2'
+    RequestAnimDict(animDict)
+    while not HasAnimDictLoaded(animDict) do
+        Wait(10)
+    end
+    QBCore.Functions.Notify('Someone is searching you! Don\'t move!', 'warn', duration)
+    CreateThread(function()
+        while timer < duration do
+            if not IsEntityPlayingAnim(playerPed, animDict, 'handsup_base', 3) then
+                TaskPlayAnim(playerPed, animDict, "handsup_base", 8.0, -8.0, -1, 49, 0, false, false, false)
+            end
+            timer = timer + 100
+            Wait(100)
+        end
+    end)
+end)
+
+RegisterCommand('rob', function(source, args, rawCommand)
+    local closestPlayer, closestDistance = QBCore.Functions.GetClosestPlayer()
+    if closestPlayer == -1 or closestDistance > 2.5 then
+        QBCore.Functions.Notify('No one nearby to rob.', 'error')
+        return
+    end
+    local targetServerId = GetPlayerServerId(closestPlayer)
+    TriggerServerEvent('robbery:server:initiateRob', targetServerId)
+end, false)
+
+RegisterNetEvent('robbery:client:startRobberyProgress', function(targetServerId)
+    QBCore.Functions.Progressbar('player_rob_command', 'SEARCHING PERSON...', 5000, false, true, {
+        disableMovement = true,
+        disableCarMovement = true,
+        disableMouse = false,
+        disableCombat = true,
+    }, {
+        animDict = 'random@shop_robbery', anim = 'robbery_action_b', flags = 16,
+    }, {}, {}, function() -- onFinish
+        TriggerServerEvent('qb-inventory:server:robPlayer', targetServerId)
+    end)
+end)
+
+RegisterNetEvent('robbery:client:checkIfHandsUp', function(robberServerId)
+    local playerPed = PlayerPedId()
+    local isHandsUp = IsEntityPlayingAnim(playerPed, 'missminuteman_1ig_2', 'handsup_base', 3)
+    TriggerServerEvent('robbery:server:handsUpResult', robberServerId, isHandsUp)
+end)

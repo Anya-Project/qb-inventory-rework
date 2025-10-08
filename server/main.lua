@@ -448,7 +448,7 @@ QBCore.Functions.CreateCallback('qb-inventory:server:createDrop', function(sourc
                 label = 'Drop',
                 maxweight = Config.DropSize.maxweight,
                 slots = Config.DropSize.slots,
-                inventory = itemsTable
+                inventory = Drops[newDropId].items
             }
         }
         cb(responseData)
@@ -808,3 +808,69 @@ function ScheduleSave(source)
         end
     end)
 end
+
+-- =================================================================
+--                   PLAYER SEARCH FEATURE (ROB)
+-- =================================================================
+
+RegisterNetEvent('robbery:server:initiateRob', function(targetId)
+    local src = source
+    local RobberPlayer = QBCore.Functions.GetPlayer(src)
+    local TargetPlayer = QBCore.Functions.GetPlayer(targetId)
+
+    if not RobberPlayer or not TargetPlayer then 
+        return 
+    end
+
+    local robberPed = GetPlayerPed(src)
+    local targetPed = GetPlayerPed(targetId)
+    local distance = #(GetEntityCoords(robberPed) - GetEntityCoords(targetPed))
+
+    if distance > 3.0 then
+        TriggerClientEvent('QBCore:Notify', src, 'Target is too far away.', 'error')
+        return
+    end
+    
+    if Player(targetId).state.inv_busy then
+        TriggerClientEvent('QBCore:Notify', src, 'This person is busy.', 'error')
+        return
+    end
+
+    TriggerClientEvent('robbery:client:checkIfHandsUp', targetId, src)
+end)
+
+RegisterNetEvent('robbery:server:handsUpResult', function(robberId, isHandsUp)
+    local targetId = source
+
+    if isHandsUp then
+        TriggerClientEvent('robbery:client:startRobberyProgress', robberId, targetId)
+    else
+        TriggerClientEvent('QBCore:Notify', robberId, 'Target does not have their hands up.', 'error')
+    end
+end)
+
+RegisterNetEvent('qb-inventory:server:robPlayer', function(targetId)
+    local src = source
+    local RobberPlayer = QBCore.Functions.GetPlayer(src)
+    local TargetPlayer = QBCore.Functions.GetPlayer(targetId)
+    if not RobberPlayer or not TargetPlayer then return end
+
+    local robberPed = GetPlayerPed(src)
+    local targetPed = GetPlayerPed(targetId)
+    local distance = #(GetEntityCoords(robberPed) - GetEntityCoords(targetPed))
+
+    if distance > 3.0 then
+        TriggerClientEvent('QBCore:Notify', src, 'Target is too far away.', 'error')
+        return
+    end
+
+    if Player(targetId).state.inv_busy then
+        TriggerClientEvent('QBCore:Notify', src, 'This person is busy.', 'error')
+        return
+    end
+
+    TriggerClientEvent('qb-inventory:client:beingRobbed', targetId)
+    OpenInventoryById(src, targetId)
+    TriggerClientEvent('QBCore:Notify', targetId, 'You are being searched!', 'error', 7500)
+    TriggerClientEvent('QBCore:Notify', src, 'You started searching ' .. GetPlayerName(targetId), 'success', 7500)
+end)
