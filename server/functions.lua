@@ -337,12 +337,15 @@ function CanAddItem(identifier, item, amount)
     if not itemData then return false end
 
     local inventory, items
-    if Player then
+     if Player then
         inventory = { maxweight = Config.MaxWeight, slots = Config.MaxSlots }
         items = Player.PlayerData.items
     elseif Inventories[identifier] then
         inventory = Inventories[identifier]
         items = Inventories[identifier].items
+    elseif Drops[identifier] then
+        inventory = Drops[identifier]
+        items = Drops[identifier].items
     end
 
     if not inventory then return false end
