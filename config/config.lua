@@ -1,9 +1,7 @@
---config/config.lua
-
 Config = {
     UseTarget = GetConvar('UseTarget', 'false') == 'true',
 
-    CashAsItem = true,
+    CashAsItem = false,
 
     MaxWeight = 120000,
     MaxSlots = 48,
