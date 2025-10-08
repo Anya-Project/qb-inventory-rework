@@ -641,7 +641,7 @@ const InventoryContainer = Vue.createApp({
               this.currentlyDraggingSlot,
               targetSlot,
               sourceItem.amount,
-              sourceItem.amount 
+              sourceItem.amount
             );
           }
         } else {
@@ -1147,10 +1147,17 @@ const InventoryContainer = Vue.createApp({
         }
       }
       content += `<div class="tooltip-description">${description}</div>`;
-      content += `<div class="tooltip-weight"><i class="fas fa-weight-hanging"></i> ${item.weight !== undefined && item.weight !== null
-        ? (item.weight / 1000).toFixed(1)
-        : "N/A"
-        }kg</div>`;
+      if (item.weight !== undefined && item.weight !== null) {
+        const perUnitWeightKg = (item.weight / 1000).toFixed(2);
+        const totalWeightKg = ((item.weight * item.amount) / 1000).toFixed(2);
+
+        let weightText = `${totalWeightKg}kg`;
+        if (item.amount > 1) {
+          weightText += ` (${perUnitWeightKg}kg each)`;
+        }
+
+        content += `<div class="tooltip-weight"><i class="fas fa-weight-hanging"></i> ${weightText}</div>`;
+      }
       content += `</div>`;
       return content;
     },
