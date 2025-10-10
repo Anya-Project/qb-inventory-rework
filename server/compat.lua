@@ -7,7 +7,21 @@ QBCore = exports['qb-core']:GetCoreObject()
 RegisterNetEvent('inventory:server:OpenInventory', function(name, data_or_targetid, slots)
     local src = source
     if not name then return end
-    if name == 'otherplayer' or name == 'player' then
+
+    if name == 'shop' then
+        local shopIdentifier = tostring(data_or_targetid)
+        local shopData = slots
+
+        if type(shopData) == 'table' and shopData.items then
+            exports['qb-inventory']:CreateShop({
+                name = shopIdentifier,
+                label = shopData.label or shopIdentifier,
+                items = shopData.items
+            })
+            
+            exports['qb-inventory']:OpenShop(src, shopIdentifier)
+        end
+    elseif name == 'otherplayer' or name == 'player' then
         local targetId = tonumber(data_or_targetid)
         if not targetId then return end
         exports['qb-inventory']:OpenInventoryById(src, targetId)
@@ -27,7 +41,6 @@ RegisterNetEvent('inventory:server:OpenInventory', function(name, data_or_target
             }
         end
         if identifier then
-            -- print(('[QB-INVENTORY-COMPAT] Accepting legacy event "OpenInventory" for stash: %s. Opening via export OpenInventory...'):format(identifier))
             exports['qb-inventory']:OpenInventory(src, identifier, inventoryData)
         end
     end
@@ -50,4 +63,4 @@ QBCore.Functions.CreateCallback('QBCore:Server:HasItem', function(source, cb, it
     cb(hasItem)
 end)
 
-print('^[2]QB-Inventory: ^7Legacy Compatibility Bridge Loaded!^0')
+print('^[2]QB-Inventory: ^7Legacy Compatibility Bridge (Smart Version) Loaded!^0')
