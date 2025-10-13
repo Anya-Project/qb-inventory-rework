@@ -362,6 +362,10 @@ end
 RegisterKeyMapping('openInv', Lang:t('inf_mapping.opn_inv'), 'keyboard', Config.Keybinds.Open)
 RegisterKeyMapping('toggleHotbar', Lang:t('inf_mapping.tog_slots'), 'keyboard', Config.Keybinds.Hotbar)
 
+exports('ToggleHotbar', function(state)
+    isHotbarDisabled = state
+end)
+
 -- =================================================================
 --                        PLAYER SEARCH FEATURE (ROB)
 -- =================================================================
