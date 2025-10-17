@@ -4,6 +4,19 @@ QBCore = exports['qb-core']:GetCoreObject()
 PlayerData = nil
 local hotbarShown = false
 local isBlurEnabled = true
+
+local function ToggleHUD(show)
+    if not Config.CustomHUD or not Config.CustomHUD.Enabled then return end
+    local resourceName = Config.CustomHUD.ResourceName
+    local exportName = Config.CustomHUD.ExportName
+    if not resourceName or not exportName then return end
+    if GetResourceState(resourceName) == 'started' then
+        local hudResource = exports[resourceName]
+        if hudResource and type(hudResource[exportName]) == 'function' then
+            hudResource[exportName](hudResource, show)
+        end
+    end
+end
 -- Handlers
 
 RegisterNetEvent('QBCore:Client:OnPlayerLoaded', function()
@@ -76,35 +89,38 @@ end
 --- @param amount number [optional] - The minimum amount required for each item. If not provided, any amount greater than 0 will be considered.
 --- @return boolean - Returns true if the player has the item(s) with the specified amount, false otherwise.
 function HasItem(items, amount)
-    local isTable = type(items) == 'table'
-    local isArray = isTable and table.type(items) == 'array' or false
-    local totalItems = isArray and #items or 0
-    local count = 0
-
-    if isTable and not isArray then
-        for _ in pairs(items) do totalItems = totalItems + 1 end
+    if not PlayerData or not PlayerData.items then
+        return false
     end
-
-    if PlayerData and type(PlayerData.items) == "table" then
-        for _, itemData in pairs(PlayerData.items) do
-            if isTable then
-                for k, v in pairs(items) do
-                    if itemData and itemData.name == (isArray and v or k) and ((amount and itemData.amount >= amount) or (not isArray and itemData.amount >= v) or (not amount and isArray)) then
-                        count = count + 1
-                        if count == totalItems then
-                            return true
-                        end
-                    end
-                end
-            else
-                if itemData and itemData.name == items and (not amount or (itemData and amount and itemData.amount >= amount)) then
-                    return true
-                end
+    local requiredItems = {}
+    if type(items) ~= 'table' then
+        requiredItems[items] = amount or 1
+    else
+        if table.type(items) == 'array' then
+            for _, itemName in ipairs(items) do
+                requiredItems[itemName] = amount or 1
+            end
+        else -- Map
+            for itemName, itemAmount in pairs(items) do
+                requiredItems[itemName] = itemAmount
             end
         end
     end
-
-    return false
+    if not next(requiredItems) then
+        return true
+    end
+    local playerItemCounts = {}
+    for _, itemData in pairs(PlayerData.items) do
+        if itemData then
+            playerItemCounts[itemData.name] = (playerItemCounts[itemData.name] or 0) + itemData.amount
+        end
+    end
+    for itemName, requiredAmount in pairs(requiredItems) do
+        if (playerItemCounts[itemName] or 0) < requiredAmount then
+            return false
+        end
+    end
+    return true
 end
 
 exports('HasItem', HasItem)
@@ -140,6 +156,7 @@ RegisterNetEvent('qb-inventory:client:hotbar', function(items)
 end)
 
 RegisterNetEvent('qb-inventory:client:closeInv', function()
+    ToggleHUD(true)
     SendNUIMessage({
         action = 'close',
     })
@@ -176,6 +193,7 @@ RegisterNetEvent('qb-inventory:server:RobPlayer', function(TargetId)
 end)
 
 RegisterNetEvent('qb-inventory:client:openInventory', function(items, other)
+    ToggleHUD(false)
     SetNuiFocus(true, true)
     SendNUIMessage({
         action = 'open',
@@ -206,6 +224,7 @@ RegisterNUICallback('AttemptPurchase', function(data, cb)
 end)
 
 RegisterNUICallback('CloseInventory', function(data, cb)
+    ToggleHUD(true)
     SetNuiFocus(false, false)
     TriggerScreenblurFadeOut(250)
 
@@ -318,6 +337,12 @@ RegisterNUICallback('GiveItemToTarget', function(data, cb)
     end, data) 
 end)
 
+RegisterNUICallback('Notify', function(data, cb)
+    if not data.message or not data.type then return end
+    QBCore.Functions.Notify(data.message, data.type, data.duration or 5000)
+    cb('ok')
+end)
+
 -- Vending
 
 CreateThread(function()
@@ -381,22 +406,7 @@ CreateThread(function()
                 action = function(entity)
                     local targetServerId = GetPlayerServerId(NetworkGetPlayerIndexFromPed(entity))
                     if targetServerId ~= -1 then
-                        QBCore.Functions.Progressbar('player_rob', 'SEARCHING PERSON...', 5000, false, true, {
-                            disableMovement = true,
-                            disableCarMovement = true,
-                            disableMouse = false,
-                            disableCombat = true,
-                        }, {
-                            animDict = 'random@shop_robbery',
-                            anim = 'robbery_action_b',
-                            flags = 16,
-                        }, {}, {}, function() -- onFinish
-                            StopAnimTask(PlayerPedId(), 'random@shop_robbery', 'robbery_action_b', 1.0)
-                            TriggerServerEvent('qb-inventory:server:robPlayer', targetServerId)
-                        end, function() -- onCancel
-                            StopAnimTask(PlayerPedId(), 'random@shop_robbery', 'robbery_action_b', 1.0)
-                            QBCore.Functions.Notify('Action canceled', 'error')
-                        end)
+                        TriggerServerEvent('robbery:server:initiateRob', targetServerId)
                     end
                 end,
                 canInteract = function(entity)
@@ -420,24 +430,26 @@ end)
 
 RegisterNetEvent('qb-inventory:client:beingRobbed', function()
     local playerPed = PlayerPedId()
-    local duration = 5500
-    local timer = 0
-    
-    local animDict = 'missminuteman_1ig_2'
-    RequestAnimDict(animDict)
-    while not HasAnimDictLoaded(animDict) do
-        Wait(10)
-    end
-    QBCore.Functions.Notify('Someone is searching you! Don\'t move!', 'warn', duration)
-    CreateThread(function()
-        while timer < duration do
-            if not IsEntityPlayingAnim(playerPed, animDict, 'handsup_base', 3) then
-                TaskPlayAnim(playerPed, animDict, "handsup_base", 8.0, -8.0, -1, 49, 0, false, false, false)
-            end
-            timer = timer + 100
-            Wait(100)
+    if not IsPedDeadOrDying(playerPed, 1) then
+        local duration = 5500
+        local timer = 0
+        
+        local animDict = 'missminuteman_1ig_2'
+        RequestAnimDict(animDict)
+        while not HasAnimDictLoaded(animDict) do
+            Wait(10)
         end
-    end)
+        QBCore.Functions.Notify('Someone is searching you! Don\'t move!', 'warn', duration)
+        CreateThread(function()
+            while timer < duration do
+                if not IsEntityPlayingAnim(playerPed, animDict, 'handsup_base', 3) then
+                    TaskPlayAnim(playerPed, animDict, "handsup_base", 8.0, -8.0, -1, 49, 0, false, false, false)
+                end
+                timer = timer + 100
+                Wait(100)
+            end
+        end)
+    end
 end)
 
 RegisterCommand('rob', function(source, args, rawCommand)
@@ -451,16 +463,35 @@ RegisterCommand('rob', function(source, args, rawCommand)
 end, false)
 
 RegisterNetEvent('robbery:client:startRobberyProgress', function(targetServerId)
-    QBCore.Functions.Progressbar('player_rob_command', 'SEARCHING PERSON...', 5000, false, true, {
-        disableMovement = true,
-        disableCarMovement = true,
-        disableMouse = false,
-        disableCombat = true,
-    }, {
-        animDict = 'random@shop_robbery', anim = 'robbery_action_b', flags = 16,
-    }, {}, {}, function() -- onFinish
+    if exports.lation_ui:progressBar({
+        label = 'Searching Person...',
+        duration = 5000,
+        icon = 'fas fa-hand-paper',
+        iconColor = '#F43F5E',
+        color = '#F43F5E',
+        canCancel = true,
+        useWhileDead = false,
+        disable = {
+            move = true,
+            car = true,
+            combat = true,
+        },
+        steps = {
+            { description = 'Checking their pockets...' },
+            { description = 'Looking for valuables...' }
+        },
+        anim = {
+            dict = 'random@shop_robbery',
+            clip = 'robbery_action_b',
+            flags = 16,
+        }
+    }) then
+        StopAnimTask(PlayerPedId(), 'random@shop_robbery', 'robbery_action_b', 1.0)
         TriggerServerEvent('qb-inventory:server:robPlayer', targetServerId)
-    end)
+    else
+        StopAnimTask(PlayerPedId(), 'random@shop_robbery', 'robbery_action_b', 1.0)
+        QBCore.Functions.Notify('Action canceled', 'error')
+    end
 end)
 
 RegisterNetEvent('robbery:client:checkIfHandsUp', function(robberServerId)
