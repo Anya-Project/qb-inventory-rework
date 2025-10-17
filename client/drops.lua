@@ -111,11 +111,15 @@ end)
 
 CreateThread(function()
     while true do
-        if HoldingDrop then
-            if IsControlJustPressed(0, 47) then
+        Wait(0)
+        if HoldingDrop and IsControlJustPressed(0, 47) then
+            local playerPed = PlayerPedId()
+            if IsPedInAnyVehicle(playerPed, false) then
+                QBCore.Functions.Notify("You cannot drop a bag while in a vehicle.", "error", 3500)
+            else
                 DetachEntity(bagObject, true, true)
-                local coords = GetEntityCoords(PlayerPedId())
-                local forward = GetEntityForwardVector(PlayerPedId())
+                local coords = GetEntityCoords(playerPed)
+                local forward = GetEntityForwardVector(playerPed)
                 local x, y, z = table.unpack(coords + forward * 0.57)
                 SetEntityCoords(bagObject, x, y, z - 0.9, false, false, false, false)
                 FreezeEntityPosition(bagObject, true)
@@ -126,6 +130,5 @@ CreateThread(function()
                 heldDrop = nil
             end
         end
-        Wait(0)
     end
 end)
