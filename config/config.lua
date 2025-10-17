@@ -1,7 +1,15 @@
+--config/config.lua
+
 Config = {
     UseTarget = GetConvar('UseTarget', 'false') == 'true',
 
     CashAsItem = false,
+
+    CustomHUD = { 
+        Enabled = false, -- set to true to hide HUD when Inventory is open
+        ResourceName = '', 
+        ExportName = ''
+    },
 
     MaxWeight = 120000,
     MaxSlots = 48,
