@@ -2,6 +2,14 @@
 <p align="center">
     <img width="300" src="https://i.imgur.com/JaOJmKS.png" />
 
+---
+
+> ⚠️ **Note:** This description is not always up to date.  
+> Many new improvements and features have been added, so the information below may not be fully accurate.  
+> For the latest and most accurate updates, please join our **[Official Discord](https://discord.gg/HMMYNPEXGY)** — all recent changes and announcements are posted there.
+
+---
+
 ## 🌐 Connect with Us
 
 <p align="center">
