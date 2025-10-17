@@ -250,7 +250,7 @@ const InventoryContainer = Vue.createApp({
       const sourceItem = sourceInventory[item.slot];
       if (!sourceItem || sourceItem.amount < amountToTransfer) {
         if (DEBUG) console.error('[INV_DEBUG] ERROR: Source item not found or insufficient amount.');
-        this.inventoryError(item.slot);
+        this.inventoryError(item.slot, sourceInventoryType);
         return;
       }
 
@@ -258,7 +258,7 @@ const InventoryContainer = Vue.createApp({
         targetWeight + sourceItem.weight * amountToTransfer;
       if (totalWeightAfterTransfer > maxTargetWeight) {
         if (DEBUG) console.error('[INV_DEBUG] ERROR: Not enough weight capacity in target inventory.');
-        this.inventoryError(item.slot);
+        this.inventoryError(item.slot, sourceInventoryType);
         return;
       }
 
@@ -293,7 +293,7 @@ const InventoryContainer = Vue.createApp({
         targetSlot = this.findNextAvailableSlot(targetInventory);
         if (targetSlot === null) {
           if (DEBUG) console.error('[INV_DEBUG] ERROR: No available slots in target inventory.');
-          this.inventoryError(item.slot);
+          this.inventoryError(item.slot, 'player');
           return;
         }
         if (DEBUG) console.log(`[INV_DEBUG] Moving to new slot ${targetSlot}`);
@@ -436,7 +436,7 @@ const InventoryContainer = Vue.createApp({
             targetItem.name === currentlyDraggingItem.name &&
             currentlyDraggingItem.unique)
         ) {
-          this.inventoryError(currentlyDraggingSlot);
+          this.inventoryError(currentlyDraggingSlot, this.dragStartInventoryType);
           return;
         }
 
@@ -509,11 +509,11 @@ const InventoryContainer = Vue.createApp({
           this.isOtherInventoryEmpty = false;
         } else {
           if (DEBUG) console.error('[INV_DEBUG] DropItemFromUI failed. Response:', response.data);
-          this.inventoryError(this.currentlyDraggingSlot);
+          this.inventoryError(this.currentlyDraggingSlot, this.dragStartInventoryType);
         }
       } catch (error) {
         console.error("Error dropping item:", error);
-        this.inventoryError(this.currentlyDraggingSlot);
+        this.inventoryError(this.currentlyDraggingSlot, this.dragStartInventoryType);
       } finally {
         this.clearDragData();
         this.clearTransferAmount();
@@ -556,23 +556,38 @@ const InventoryContainer = Vue.createApp({
         if (sourceItem.amount < amountToTransfer)
           throw new Error("Insufficient amount");
 
-        const targetWeight =
-          targetInventoryType === "player"
-            ? this.playerWeight
-            : this.otherInventoryWeight;
-        const maxTargetWeight =
-          targetInventoryType === "player"
-            ? this.maxWeight
-            : this.otherInventoryMaxWeight;
-
+        // --- VALIDASI BARU DIMULAI DI SINI ---
         if (targetInventoryType !== this.dragStartInventoryType) {
-          if (
-            targetWeight + sourceItem.weight * amountToTransfer >
-            maxTargetWeight
-          ) {
-            throw new Error("Not enough weight capacity");
+          const targetWeight = targetInventoryType === "player" ? this.playerWeight : this.otherInventoryWeight;
+          const maxTargetWeight = targetInventoryType === "player" ? this.maxWeight : this.otherInventoryMaxWeight;
+          if (targetWeight + sourceItem.weight * amountToTransfer > maxTargetWeight) {
+            throw new Error("weight");
+          }
+
+          const maxSlots = targetInventoryType === 'player' ? this.totalSlots : this.otherInventorySlots;
+          const currentSlots = Object.keys(targetInventory).length;
+          const targetItemInSlot = targetInventory[targetSlot];
+
+          let canStack = false;
+          if (!sourceItem.unique) {
+              for (const key in targetInventory) {
+                  const item = targetInventory[key];
+                  if (item.name === sourceItem.name) {
+                      const sourceHasExpiry = sourceItem.info && sourceItem.info.expiryDate;
+                      const targetHasExpiry = item.info && item.info.expiryDate;
+                      if ((!sourceHasExpiry && !targetHasExpiry) || (sourceHasExpiry && targetHasExpiry && sourceItem.info.expiryDate === item.info.expiryDate)) {
+                          canStack = true;
+                          break;
+                      }
+                  }
+              }
+          }
+
+          if (!targetItemInSlot && !canStack && currentSlots >= maxSlots) {
+            throw new Error("slots");
           }
         }
+        // --- VALIDASI SELESAI ---
 
         const targetItem = targetInventory[targetSlot];
 
@@ -611,7 +626,7 @@ const InventoryContainer = Vue.createApp({
             sourceItem.name === targetItem.name &&
             (targetItem.unique || sourceItem.unique)
           ) {
-            this.inventoryError(this.currentlyDraggingSlot);
+            this.inventoryError(this.currentlyDraggingSlot, this.dragStartInventoryType);
             return;
           }
           if (sourceItem.name === targetItem.name) {
@@ -670,8 +685,14 @@ const InventoryContainer = Vue.createApp({
           );
         }
       } catch (error) {
-        console.error(error.message);
-        this.inventoryError(this.currentlyDraggingSlot);
+        if (error.message === 'weight') {
+            this.sendClientNotification("Not enough space.", "error");
+        } else if (error.message === 'slots') {
+            this.sendClientNotification("No free slots.", "error");
+        } else {
+            console.error("Inventory action failed:", error.message); // Fallback for other errors
+        }
+        this.inventoryError(this.currentlyDraggingSlot, this.dragStartInventoryType);
       } finally {
         this.clearDragData();
         this.clearTransferAmount();
@@ -696,7 +717,7 @@ const InventoryContainer = Vue.createApp({
             transferAmount !== null ? transferAmount : sourceItem.amount;
 
           if (sourceItem.amount < amountToTransfer) {
-            this.inventoryError(sourceSlot);
+            this.inventoryError(sourceSlot, 'other');
             return;
           }
 
@@ -706,10 +727,10 @@ const InventoryContainer = Vue.createApp({
           }
         } else {
           if (DEBUG) console.error('[INV_DEBUG] Purchase failed by server.');
-          this.inventoryError(sourceSlot);
+          this.inventoryError(sourceSlot, 'other');
         }
       } catch (error) {
-        this.inventoryError(sourceSlot);
+        this.inventoryError(sourceSlot, 'other');
       }
     },
     async dropItem(item, quantity) {
@@ -772,7 +793,7 @@ const InventoryContainer = Vue.createApp({
             this.dropAmount = 1;
           }
         } catch (error) {
-          this.inventoryError(item.slot);
+          this.inventoryError(item.slot, 'player');
         }
       }
       this.showContextMenu = false;
@@ -1017,10 +1038,13 @@ const InventoryContainer = Vue.createApp({
         }, 100);
       }
     },
-    inventoryError(slot) {
-      const slotElement = document.getElementById(`slot-${slot}`);
+    inventoryError(slot, inventoryType) {
+      const parentSelector = inventoryType === 'other' ? '.other-inventory-section' : '.player-inventory-section';
+      const slotElement = document.querySelector(`${parentSelector} .item-slot[data-slot='${slot}']`);
+
       if (slotElement) {
-        slotElement.style.backgroundColor = "red";
+        slotElement.style.backgroundColor = "rgba(234, 67, 53, 0.4)";
+        slotElement.classList.add('shake');
       }
       axios.post("https://qb-inventory/PlayDropFail", {}).catch((error) => {
         console.error("Error playing drop fail:", error);
@@ -1028,8 +1052,9 @@ const InventoryContainer = Vue.createApp({
       setTimeout(() => {
         if (slotElement) {
           slotElement.style.backgroundColor = "";
+          slotElement.classList.remove('shake');
         }
-      }, 1000);
+      }, 500);
     },
     copySerial() {
       if (!this.contextMenuItem) {
@@ -1333,6 +1358,10 @@ const InventoryContainer = Vue.createApp({
           att.attachment.toLowerCase().includes(type)
         ) || null
       );
+    },
+
+    sendClientNotification(message, type) {
+      axios.post("https://qb-inventory/Notify", { message, type });
     },
 
     getAttachmentTooltip(...types) {
