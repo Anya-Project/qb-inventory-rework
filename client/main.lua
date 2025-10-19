@@ -463,35 +463,22 @@ RegisterCommand('rob', function(source, args, rawCommand)
 end, false)
 
 RegisterNetEvent('robbery:client:startRobberyProgress', function(targetServerId)
-    if exports.lation_ui:progressBar({
-        label = 'Searching Person...',
-        duration = 5000,
-        icon = 'fas fa-hand-paper',
-        iconColor = '#F43F5E',
-        color = '#F43F5E',
-        canCancel = true,
-        useWhileDead = false,
-        disable = {
-            move = true,
-            car = true,
-            combat = true,
-        },
-        steps = {
-            { description = 'Checking their pockets...' },
-            { description = 'Looking for valuables...' }
-        },
-        anim = {
-            dict = 'random@shop_robbery',
-            clip = 'robbery_action_b',
-            flags = 16,
-        }
-    }) then
+    QBCore.Functions.Progressbar('player_robbery', 'Searching Person...', 5000, false, true, {
+        disableMovement = true,
+        disableCarMovement = true,
+        disableMouse = false,
+        disableCombat = true,
+    }, {
+        animDict = 'random@shop_robbery',
+        anim = 'robbery_action_b',
+        flags = 16,
+    }, {}, {}, function() -- onFinish
         StopAnimTask(PlayerPedId(), 'random@shop_robbery', 'robbery_action_b', 1.0)
         TriggerServerEvent('qb-inventory:server:robPlayer', targetServerId)
-    else
+    end, function() -- onCancel
         StopAnimTask(PlayerPedId(), 'random@shop_robbery', 'robbery_action_b', 1.0)
         QBCore.Functions.Notify('Action canceled', 'error')
-    end
+    end)
 end)
 
 RegisterNetEvent('robbery:client:checkIfHandsUp', function(robberServerId)
