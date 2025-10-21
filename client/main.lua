@@ -111,7 +111,7 @@ function HasItem(items, amount)
     end
     local playerItemCounts = {}
     for _, itemData in pairs(PlayerData.items) do
-        if itemData then
+        if itemData and itemData.name and itemData.amount then
             playerItemCounts[itemData.name] = (playerItemCounts[itemData.name] or 0) + itemData.amount
         end
     end
@@ -124,7 +124,6 @@ function HasItem(items, amount)
 end
 
 exports('HasItem', HasItem)
-
 -- Events
 
 RegisterNetEvent('qb-inventory:client:requiredItems', function(items, bool)
