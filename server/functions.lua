@@ -866,3 +866,10 @@ function GetInventory(identifier)
 end
 
 exports('GetInventory', GetInventory)
+
+exports('GetPlayerInventoryLimits', function()
+    return {
+        weight = Config.MaxWeight,
+        slots = Config.MaxSlots
+    }
+end)
