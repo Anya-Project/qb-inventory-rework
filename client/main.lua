@@ -468,14 +468,14 @@ RegisterNetEvent('robbery:client:startRobberyProgress', function(targetServerId)
         disableMouse = false,
         disableCombat = true,
     }, {
-        animDict = 'random@shop_robbery',
-        anim = 'robbery_action_b',
-        flags = 16,
-    }, {}, {}, function() -- onFinish
-        StopAnimTask(PlayerPedId(), 'random@shop_robbery', 'robbery_action_b', 1.0)
+        animDict = 'random@arrests',
+        anim = 'busted_search',
+        flags = 49, 
+    }, {}, {}, function() 
+        StopAnimTask(PlayerPedId(), 'random@arrests', 'busted_search', 1.0)
         TriggerServerEvent('qb-inventory:server:robPlayer', targetServerId)
-    end, function() -- onCancel
-        StopAnimTask(PlayerPedId(), 'random@shop_robbery', 'robbery_action_b', 1.0)
+    end, function()
+        StopAnimTask(PlayerPedId(), 'random@arrests', 'busted_search', 1.0)
         QBCore.Functions.Notify('Action canceled', 'error')
     end)
 end)
