@@ -7,8 +7,26 @@ Drops = {}
 RegisteredShops = {}
 local saveCounters = {}
 local SAVE_DELAY = 2500 -- save timer in milliseconds
-
 Config.Debug = false -- Set to false to disable console logs
+
+local webhook_url = "YOUR_DISCORD_WEBHOOK_URL_HERE" -- Put your discord webhook url here for player rob logs
+
+
+local function SendRobberyLogToDiscord(title, color, fields)
+    if not webhook_url or webhook_url == "YOUR_DISCORD_WEBHOOK_URL_HERE" then return end
+    local embed = {
+        {
+            ["title"] = title,
+            ["color"] = color,
+            ["fields"] = fields,
+            ["footer"] = {
+                ["text"] = "qb-inventory | Robbery Log"
+            },
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%S.000Z")
+        }
+    }
+    PerformHttpRequest(webhook_url, function(err, text, headers) end, 'POST', json.encode({ embeds = embed }), { ['Content-Type'] = 'application/json' })
+end
 
 local function SanitizeInventory(items)
     if not items or type(items) ~= 'table' then return {} end
@@ -706,24 +724,15 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData',
                  function(fromInventory, toInventory, fromSlot, toSlot,
                           fromAmount, toAmount)
     if Config.Debug then
-        print(
-            ('[INV_DEBUG_SERVER] SetInventoryData Received from source: %s'):format(
-                source))
-        print(
-            ('[INV_DEBUG_SERVER] > fromInventory: %s | toInventory: %s'):format(
-                tostring(fromInventory), tostring(toInventory)))
-        print(('[INV_DEBUG_SERVER] > fromSlot: %s | toSlot: %s'):format(
-                  tostring(fromSlot), tostring(toSlot)))
-        print(
-            ('[INV_DEBUG_SERVER] > fromAmount (original amount): %s | toAmount (amount moved): %s'):format(
-                tostring(fromAmount), tostring(toAmount)))
+        print(('[INV_DEBUG_SERVER] SetInventoryData Received from source: %s'):format(source))
+        print(('[INV_DEBUG_SERVER] > fromInventory: %s | toInventory: %s'):format(tostring(fromInventory), tostring(toInventory)))
+        print(('[INV_DEBUG_SERVER] > fromSlot: %s | toSlot: %s'):format(tostring(fromSlot), tostring(toSlot)))
+        print(('[INV_DEBUG_SERVER] > fromAmount (original amount): %s | toAmount (amount moved): %s'):format(tostring(fromAmount), tostring(toAmount)))
     end
 
     if toAmount == nil or tonumber(toAmount) <= 0 then
         if Config.Debug then
-            print(
-                ('[INV_DEBUG_SERVER] ERROR: Received invalid or zero toAmount (%s). Aborting move.'):format(
-                    tostring(toAmount)))
+            print(('[INV_DEBUG_SERVER] ERROR: Received invalid or zero toAmount (%s). Aborting move.'):format(tostring(toAmount)))
         end
         return
     end
@@ -765,6 +774,20 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData',
         return
     end
 
+    if fromInventory:find('otherplayer-') and toInventory == 'player' then
+        local targetId = tonumber(fromInventory:match('otherplayer%-(.+)'))
+        local RobberPlayer = Player
+        local TargetPlayer = QBCore.Functions.GetPlayer(targetId)
+        if RobberPlayer and TargetPlayer then
+            local logFields = {
+                { name = "Stolen Item", value = string.format("```Item: %s\nAmount: %s```", fromItem.label, toAmount) },
+                { name = "Robber", value = string.format("```Name: %s\nID: %s```", RobberPlayer.PlayerData.name, RobberPlayer.PlayerData.source), inline = true },
+                { name = "Victim", value = string.format("```Name: %s\nID: %s```", TargetPlayer.PlayerData.name, TargetPlayer.PlayerData.source), inline = true }
+            }
+            SendRobberyLogToDiscord("Item Stolen During Robbery", 15158332, logFields) -- Red Color
+        end
+    end
+
     if Config.Debug then
         print('[INV_DEBUG_SERVER] > fromItem: ' .. json.encode(fromItem))
         print('[INV_DEBUG_SERVER] > toItem: ' .. json.encode(toItem))
@@ -773,9 +796,7 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData',
     local serverFromAmount = fromItem.amount
     if toAmount > serverFromAmount then
         if Config.Debug then
-            print(
-                ('[INV_DEBUG_SERVER] ERROR: Client tried to move %s but server only has %s. Aborting.'):format(
-                    toAmount, serverFromAmount))
+            print(('[INV_DEBUG_SERVER] ERROR: Client tried to move %s but server only has %s. Aborting.'):format(toAmount, serverFromAmount))
         end
         return
     end
@@ -856,11 +877,8 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData',
             print('[INV_DEBUG_SERVER] > Action: Different Inventory Move')
         end
         local function rollback(message)
-            print(
-                ('[qb-inventory] CRITICAL ERROR: %s. Rolling back transaction.'):format(
-                    message))
-            AddItem(fromId, fromItem.name, toAmount, fromSlot, fromItem.info,
-                    'move_failed_rollback')
+            print(('[qb-inventory] CRITICAL ERROR: %s. Rolling back transaction.'):format(message))
+            AddItem(fromId, fromItem.name, toAmount, fromSlot, fromItem.info, 'move_failed_rollback')
         end
 
         local canStackAcross = toItem and fromItem.name == toItem.name and
@@ -875,102 +893,71 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData',
             if Config.Debug then
                 print('[INV_DEBUG_SERVER] > Logic Path: canStackAcross')
             end
-            if RemoveItem(fromId, fromItem.name, toAmount, fromSlot,
-                          'stacked item') then
-                if not AddItem(toId, toItem.name, toAmount, toSlot, toItem.info,
-                               'stacked item') then
+            if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'stacked item') then
+                if not AddItem(toId, toItem.name, toAmount, toSlot, toItem.info, 'stacked item') then
                     rollback('AddItem failed when stacking across inventories')
                 end
             end
         elseif not toItem and toAmount < serverFromAmount then
             if Config.Debug then
-                print(
-                    '[INV_DEBUG_SERVER] > Logic Path: Split across inventories')
+                print('[INV_DEBUG_SERVER] > Logic Path: Split across inventories')
             end
             local canAdd, reason = CanAddItem(toId, fromItem.name, toAmount)
             if canAdd then
-                if RemoveItem(fromId, fromItem.name, toAmount, fromSlot,
-                              'split item') then
-                    if not AddItem(toId, fromItem.name, toAmount, toSlot,
-                                   fromItem.info, 'split item') then
-                        rollback(
-                            'AddItem failed when splitting across inventories')
+                if RemoveItem(fromId, fromItem.name, toAmount, fromSlot, 'split item') then
+                    if not AddItem(toId, fromItem.name, toAmount, toSlot, fromItem.info, 'split item') then
+                        rollback('AddItem failed when splitting across inventories')
                     end
                 end
             else
                 if Config.Debug then
-                    print(
-                        ('[INV_DEBUG_SERVER] Move aborted: Cannot split item to target. Reason: %s'):format(
-                            reason))
+                    print(('[INV_DEBUG_SERVER] Move aborted: Cannot split item to target. Reason: %s'):format(reason))
                 end
-                local msg = reason == 'weight' and
-                                'Target inventory does not have enough space.' or
-                                'Target inventory has no free slots.'
+                local msg = reason == 'weight' and 'Target inventory does not have enough space.' or 'Target inventory has no free slots.'
                 TriggerClientEvent('QBCore:Notify', src, msg, 'error')
             end
         else
             if toItem then
                 if Config.Debug then
-                    print(
-                        '[INV_DEBUG_SERVER] > Logic Path: Swap across inventories')
+                    print('[INV_DEBUG_SERVER] > Logic Path: Swap across inventories')
                 end
                 local toItemAmount = toItem.amount
-                local canAddTo, reasonTo =
-                    CanAddItem(toId, fromItem.name, serverFromAmount)
-                local canAddFrom, reasonFrom =
-                    CanAddItem(fromId, toItem.name, toItemAmount)
+                local canAddTo, reasonTo = CanAddItem(toId, fromItem.name, serverFromAmount)
+                local canAddFrom, reasonFrom = CanAddItem(fromId, toItem.name, toItemAmount)
                 if canAddTo and canAddFrom then
-                    if RemoveItem(fromId, fromItem.name, serverFromAmount,
-                                  fromSlot, 'swapped item') and
-                        RemoveItem(toId, toItem.name, toItemAmount, toSlot,
-                                   'swapped item') then
-                        AddItem(toId, fromItem.name, serverFromAmount, toSlot,
-                                fromItem.info, 'swapped item')
-                        AddItem(fromId, toItem.name, toItemAmount, fromSlot,
-                                toItem.info, 'swapped item')
+                    if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'swapped item') and
+                        RemoveItem(toId, toItem.name, toItemAmount, toSlot, 'swapped item') then
+                        AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'swapped item')
+                        AddItem(fromId, toItem.name, toItemAmount, fromSlot, toItem.info, 'swapped item')
                     end
                 else
                     if Config.Debug then
-                        print(
-                            '[INV_DEBUG_SERVER] Swap aborted: One or both inventories cannot hold the swapped item.')
+                        print('[INV_DEBUG_SERVER] Swap aborted: One or both inventories cannot hold the swapped item.')
                     end
                     if not canAddTo then
-                        local msg = reasonTo == 'weight' and
-                                        'Target inventory does not have enough space for this item.' or
-                                        'Target inventory has no free slots for this item.'
+                        local msg = reasonTo == 'weight' and 'Target inventory does not have enough space for this item.' or 'Target inventory has no free slots for this item.'
                         TriggerClientEvent('QBCore:Notify', src, msg, 'error')
                     elseif not canAddFrom then
-                        local msg = reasonFrom == 'weight' and
-                                        'Your inventory does not have enough space for the swapped item.' or
-                                        'Your inventory has no free slots for the swapped item.'
+                        local msg = reasonFrom == 'weight' and 'Your inventory does not have enough space for the swapped item.' or 'Your inventory has no free slots for the swapped item.'
                         TriggerClientEvent('QBCore:Notify', src, msg, 'error')
                     end
                 end
             else
                 if Config.Debug then
-                    print(
-                        '[INV_DEBUG_SERVER] > Logic Path: Move to empty slot across inventories')
+                    print('[INV_DEBUG_SERVER] > Logic Path: Move to empty slot across inventories')
                 end
-                local canAdd, reason = CanAddItem(toId, fromItem.name,
-                                                  serverFromAmount)
+                local canAdd, reason = CanAddItem(toId, fromItem.name, serverFromAmount)
                 if canAdd then
-                    if RemoveItem(fromId, fromItem.name, serverFromAmount,
-                                  fromSlot, 'moved item') then
-                        if not AddItem(toId, fromItem.name, serverFromAmount,
-                                       toSlot, fromItem.info, 'moved item') then
-                            rollback(
-                                'AddItem failed when moving to an empty slot')
+                    if RemoveItem(fromId, fromItem.name, serverFromAmount, fromSlot, 'moved item') then
+                        if not AddItem(toId, fromItem.name, serverFromAmount, toSlot, fromItem.info, 'moved item') then
+                            rollback('AddItem failed when moving to an empty slot')
                         end
                     end
                 else
                     if Config.Debug then
-                        print(
-                            ('[INV_DEBUG_SERVER] Move aborted: Cannot move item to target. Reason: %s'):format(
-                                reason))
+                        print(('[INV_DEBUG_SERVER] Move aborted: Cannot move item to target. Reason: %s'):format(reason))
                     end
-                    local msg = reason == 'weight' and
-                                    'Target inventory does not have enough space.' or
-                                    'Target inventory has no free slots.'
+                    local msg = reason == 'weight' and 'Target inventory does not have enough space.' or 'Target inventory has no free slots.'
                     TriggerClientEvent('QBCore:Notify', src, msg, 'error')
                 end
             end
@@ -1046,8 +1033,7 @@ RegisterNetEvent('qb-inventory:server:robPlayer', function(targetId)
     local distance = #(GetEntityCoords(robberPed) - GetEntityCoords(targetPed))
 
     if distance > 3.0 then
-        TriggerClientEvent('QBCore:Notify', src, 'Target is too far away.',
-                           'error')
+        TriggerClientEvent('QBCore:Notify', src, 'Target is too far away.', 'error')
         return
     end
 
@@ -1056,14 +1042,23 @@ RegisterNetEvent('qb-inventory:server:robPlayer', function(targetId)
         return
     end
 
+    local robberIdentifier = RobberPlayer.PlayerData.license
+    local targetIdentifier = TargetPlayer.PlayerData.license
+    local robberCitizenId = RobberPlayer.PlayerData.citizenid
+    local targetCitizenId = TargetPlayer.PlayerData.citizenid
+
+    local logFields = {
+        { name = "Robber", value = string.format("```Name: %s\nID: %s\nCitizenID: %s\nIdentifier: %s```", GetPlayerName(src), src, robberCitizenId, robberIdentifier), inline = true },
+        { name = "Victim", value = string.format("```Name: %s\nID: %s\nCitizenID: %s\nIdentifier: %s```", GetPlayerName(targetId), targetId, targetCitizenId, targetIdentifier), inline = true }
+    }
+    SendRobberyLogToDiscord("Player Robbery Initiated", 16753920, logFields) -- Orange Color
+
     if not TargetPlayer.PlayerData.metadata['isdead'] then
         TriggerClientEvent('qb-inventory:client:beingRobbed', targetId)
     end
 
     OpenInventoryById(src, targetId)
-    TriggerClientEvent('QBCore:Notify', targetId, 'You are being searched!',
-                       'error', 7500)
-    TriggerClientEvent('QBCore:Notify', src,
-                       'You started searching ' .. GetPlayerName(targetId),
-                       'success', 7500)
+    TriggerClientEvent('QBCore:Notify', targetId, 'You are being searched!', 'error', 7500)
+    TriggerClientEvent('QBCore:Notify', src, 'You started searching ' .. GetPlayerName(targetId), 'success', 7500)
 end)
+
