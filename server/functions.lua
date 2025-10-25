@@ -626,6 +626,7 @@ end
 exports('RemoveInventory', RemoveInventory)
 
 function AddItem(identifier, item, amount, slot, info, reason)
+    amount = tonumber(amount) or 1
     local itemInfo = QBCore.Shared.Items[item:lower()]
     if not itemInfo then
         print('AddItem: Invalid item "' .. tostring(item) .. '"')
@@ -640,7 +641,9 @@ function AddItem(identifier, item, amount, slot, info, reason)
         inventory, inventoryWeight, inventorySlots = player.PlayerData.items, Config.MaxWeight, Config.MaxSlots
         inventoryType = 'player'
     elseif Inventories[identifier] then
-        inventory, inventoryWeight, inventorySlots = Inventories[identifier].items, Inventories[identifier].maxweight, Inventories[identifier].slots
+        inventory = Inventories[identifier].items
+        inventoryWeight = Inventories[identifier].maxweight or Config.StashSize.maxweight
+        inventorySlots = Inventories[identifier].slots or Config.StashSize.slots
         inventoryType = 'stash'
     elseif Drops[identifier] then
         inventory, inventoryWeight, inventorySlots = Drops[identifier].items, Drops[identifier].maxweight, Drops[identifier].slots
@@ -654,7 +657,6 @@ function AddItem(identifier, item, amount, slot, info, reason)
         return false
     end
 
-    amount = tonumber(amount) or 1
     local updated = false
 
     if not itemInfo.unique then
