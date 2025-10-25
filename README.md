@@ -34,6 +34,7 @@ QB Inventory Rework is a complete replacement for the default QBCore inventory, 
 
 - Cash as an item
 - New give system
+- Rob Player
 - Decay system for food & drinks
 - Weapon attachment panel
 - New 2-panel UI layout
@@ -226,12 +227,11 @@ end
         end
         return cashCount
     end
-    
+
     return self.PlayerData.money[moneytype]
 end
 -----------------------------EDITED BY APCODE END--------------------------
 ```
-
 
 #### B. Replace the `CheckPlayerData` Function
 
